@@ -1,0 +1,17 @@
+LittleEndian();
+
+typedef byte int8;
+typedef ubyte uint8;
+
+struct KeyMapping {
+	uint16 index;
+	uint8 keyLength;
+	char key[keyLength];
+};
+
+struct KeysTable {
+	uint16 count;
+	KeyMapping mappings[count]<optimize=false>;
+};
+
+KeysTable keysTable;

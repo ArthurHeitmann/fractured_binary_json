@@ -1,0 +1,167 @@
+LittleEndian();
+
+typedef byte int8;
+typedef ubyte uint8;
+
+struct Header {
+	char magic[2];
+	uint8 config;
+};
+
+struct KeyMapping {
+	uint16 index;
+	uint8 keyLength;
+	char key[keyLength];
+};
+
+struct KeysTable {
+	uint16 count;
+	KeyMapping mappings[count]<optimize=false>;
+};
+
+typedef char DataType;
+
+int dataTypeHasJsonValue(DataType type) {
+	switch (type)
+	{
+		case 'o':
+		case 'a':
+		case 's':
+		case '0':
+		case 'f':
+		case 'b':
+		case 'B':
+		case 'z':
+			return true;
+		default:
+			return false;
+	}	
+}
+
+struct ObjectEntry;
+struct ObjectSmall {
+	uint8 count;
+	ObjectEntry entries[count]<optimize=false>;
+};
+struct ObjectBig {
+	uint16 count;
+	ObjectEntry entries[count]<optimize=false>;
+};
+struct ObjectLong {
+	uint32 count;
+	ObjectEntry entries[count]<optimize=false>;
+};
+struct Element;
+struct ObjectEntry {
+	uint16 keyIndex;
+	Element element;
+};
+struct ArraySmall {
+	uint8 count;
+	Element elements[count]<optimize=false>;
+};
+struct ArrayBig {
+	uint16 count;
+	Element elements[count]<optimize=false>;
+};
+struct ArrayLong {
+	uint32 count;
+	Element elements[count]<optimize=false>;
+};
+struct StringSmall {
+	uint8 length;
+	char chars[length];
+};
+struct StringBig {
+	uint16 length;
+	char chars[length];
+};
+struct StringLong {
+	uint32 length;
+	char chars[length];
+};
+
+struct Value (const DataType& type) {
+	switch (type)
+	{
+		case 'O':
+			ObjectSmall object;
+			break;
+		case 'p':
+			ObjectBig object;
+			break;
+		case 'P':
+			ObjectLong object;
+			break;
+		case 'A':
+			ArraySmall array;
+			break;
+		case 'c':
+			ArrayBig array;
+			break;
+		case 'C':
+			ArrayLong array;
+			break;
+		case 'S':
+			StringSmall str;
+			break;
+		case 't':
+			StringBig str;
+			break;
+		case 'T':
+			StringLong str;
+			break;
+		case 'i':
+			int8 value;
+			break;
+		case 'I':
+			uint8 value;
+			break;
+		case 'j':
+			int16 value;
+			break;
+		case 'J':
+			uint16 value;
+			break;
+		case 'k':
+			int32 value;
+			break;
+		case 'K':
+			uint32 value;
+			break;
+		case 'l':
+			int64 value;
+			break;
+		case 'L':
+			uint64 value;
+			break;
+		case 'F':
+			float value;
+			break;
+		case 'd':
+			double value;
+			break;
+		default:
+			Assert(false, "Invalid data type");
+	}
+};
+
+
+struct Element {
+	DataType type;
+	if (!dataTypeHasJsonValue(type)) {
+		Value value(type);
+	}
+};
+
+
+Header header;
+if (header.config & 0x10)
+	KeysTable keys;
+if (header.config & 0x20) {
+	local int remaining = FileSize() - FTell();
+	uint8 zstdCompressedBytes[remaining];
+}
+else {
+	Element root;
+}
