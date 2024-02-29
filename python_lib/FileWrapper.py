@@ -185,12 +185,16 @@ class ByteReader(BinaryReader):
 	def __init__(self, byteData: bytes):
 		self._bytes = byteData
 		self.pos = 0
+		self.size = len(byteData)
 
 	def _read(self, length: int) -> bytes:
 		result = self._bytes[self.pos:self.pos + length]
 		self.pos += length
 		return result
-	
+
+	def tell(self) -> int:
+		return self.pos
+
 	def readUint8(self) -> int:
 		return unpack('<B', self._read(1))[0]
 	

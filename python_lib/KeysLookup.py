@@ -1,5 +1,7 @@
 from structs.KeysTable import KeysTable
 
+_globalTableEnd = 0x8000
+_localTableOffset = 0x8001
 
 class KeysLookup:
 	globalKeysTable: KeysTable
@@ -10,12 +12,12 @@ class KeysLookup:
 		self.localKeysTable = localKeysTable
 
 	def lookupIndex(self, index: int) -> str:
-		if index <= self.globalKeysTable.count:
+		if index <= _globalTableEnd:
 			return self.globalKeysTable.lookupIndex(index)
 		else:
 			if self.localKeysTable is None:
 				raise Exception("Local keys table not found")
-			return self.localKeysTable.lookupIndex(index - self.globalKeysTable.count)
+			return self.localKeysTable.lookupIndex(index - _localTableOffset)
 		
 	def getKeyIndex(self, key: str) -> int:
 		index = self.globalKeysTable.getKeyIndex(key)
@@ -26,7 +28,7 @@ class KeysLookup:
 		index = self.localKeysTable.getKeyIndex(key, allowCreate=True)
 		if index is None:
 			raise Exception("Could not create key in local keys table")
-		return index + self.globalKeysTable.count
+		return index + _localTableOffset
 	
 	def visitKey(self, key: str):
 		self.getKeyIndex(key)

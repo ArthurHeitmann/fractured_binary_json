@@ -5,7 +5,7 @@ from FileWrapper import FileWrapper
 from structs.KeysTable import KeysTable
 
 
-def generateGlobalKeysTableFromJson(objects: Iterable[dict], globalKeysTablePath: str, append: bool = False):
+def generateGlobalKeysTableFromJson(objects: Iterable[dict|list], globalKeysTablePath: str, append: bool = False):
 	if append and os.path.exists(globalKeysTablePath):
 		with FileWrapper.fromFile(globalKeysTablePath, "rb") as f:
 			keysTable = KeysTable.readBytes(f)

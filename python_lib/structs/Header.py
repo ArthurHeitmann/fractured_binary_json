@@ -8,10 +8,11 @@ class Header:
 	magic: str
 	config: int
 
-	def __init__(self):
+	def __init__(self, config: int = 0, useZstd: bool|None = None):
 		self.magic = _magic
-		self.config = 0
-		self.useZstd = _defaultUseZstd
+		self.config = config
+		if useZstd is not None:
+			self.useZstd = useZstd
 
 	@staticmethod
 	def readBytes(bytes: BinaryReader):
@@ -19,7 +20,7 @@ class Header:
 		config = bytes.readUint8()
 		if magic != _magic:
 			raise Exception("Invalid magic")
-		return Header()
+		return Header(config)
 
 	def writeBytes(self, bytes: BinaryWriter):
 		bytes.writeString(self.magic)

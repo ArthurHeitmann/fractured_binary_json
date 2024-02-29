@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from zstandard import ZstdCompressor, ZstdDecompressor
+from zstandard import ZstdCompressionDict, ZstdCompressor, ZstdDecompressor
 from FileWrapper import BinaryReader, BinaryWriter, ByteReader, ByteWriter
 from KeysLookup import KeysLookup
 from ioClass import JsonIoClass
@@ -46,7 +46,7 @@ class FracturedJson(JsonIoClass):
 	def toJson(self) -> object:
 		return self.rootElement.toJson()
 	
-	def writeBytes(self, bytes: BinaryWriter, keysLookup: KeysLookup|None = None, compressionLevel: int = 3) -> None:
+	def writeBytes(self, bytes: BinaryWriter, keysLookup: KeysLookup|None = None, compressionLevel: int = 3, zstdDict: ZstdCompressionDict|None = None) -> None:
 		keysLookup = keysLookup or self.keysLookup
 		self.updateSize()
 		self.header.writeBytes(bytes)
@@ -55,7 +55,8 @@ class FracturedJson(JsonIoClass):
 			if self.header.hasLocalKeysTable:
 				keysLookup.localKeysTable.writeBytes(uncompressedBytes)
 			self.rootElement.writeBytes(uncompressedBytes, keysLookup)
-			compressedBytes = ZstdCompressor(level=compressionLevel).compress(uncompressedBytes.byteData)
+			compressedBytes = ZstdCompressor(level=compressionLevel, dict_data=zstdDict) \
+				.compress(uncompressedBytes.byteData)
 			bytes.writeBytes(compressedBytes)
 		else:
 			if self.header.hasLocalKeysTable:

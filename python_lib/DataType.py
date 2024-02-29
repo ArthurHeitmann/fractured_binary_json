@@ -34,33 +34,16 @@ class DataTypeChar(Enum):
 	trueBool = "B"
 	nullValue = "z"
 
-	@property
-	def char(self):
-		return self.value
+	char: str
+	# sizeClass: SizeClass
+	hasJsonValue: bool
+	jsonValue: object
 
-	@staticmethod
-	def fromChar(c: str):
-		for dataType in DataTypeChar:
-			if dataType.value == c:
-				return dataType
-		raise Exception("Unknown data type char: " + c)
+	def __init__(self, value: str):
+		self.char = value
 	
-	@property
-	def sizeClass(self):
-		if self in (DataTypeChar.emptyObject, DataTypeChar.emptyArray, DataTypeChar.emptyString):
-			return SizeClass.empty
-		elif self in (DataTypeChar.smallObject, DataTypeChar.smallArray, DataTypeChar.smallString):
-			return SizeClass.small
-		elif self in (DataTypeChar.bigObject, DataTypeChar.bigArray, DataTypeChar.bigString):
-			return SizeClass.big
-		elif self in (DataTypeChar.longObject, DataTypeChar.longArray, DataTypeChar.longString):
-			return SizeClass.long
-		else:
-			raise Exception("Unknown data type char: " + self.value)
-	
-	@property
-	def hasJsonValue(self):
-		return self in {
+	def _init(self):
+		self.hasJsonValue = self in {
 			DataTypeChar.emptyObject,
 			DataTypeChar.emptyArray,
 			DataTypeChar.emptyString,
@@ -70,9 +53,36 @@ class DataTypeChar(Enum):
 			DataTypeChar.trueBool,
 			DataTypeChar.nullValue,
 		}
+		# self.sizeClass = self._getSizeClass()
+		if self.hasJsonValue:
+			self.jsonValue = self._getJsonValue()
+
+
+	@staticmethod
+	def fromChar(c: str):
+		# for dataType in DataTypeChar:
+		# 	if dataType.char == c:
+		# 		return dataType
+		# raise Exception("Unknown data type char: " + c)
+		return _dataTypeCharFromChar[c]
 	
-	@property
-	def jsonValue(self):
+	def _getSizeClass(self):
+		if self in (DataTypeChar.emptyObject, DataTypeChar.emptyArray, DataTypeChar.emptyString):
+			return SizeClass.empty
+		elif self in (DataTypeChar.smallObject, DataTypeChar.smallArray, DataTypeChar.smallString):
+			return SizeClass.small
+		elif self in (DataTypeChar.bigObject, DataTypeChar.bigArray, DataTypeChar.bigString):
+			return SizeClass.big
+		elif self in (DataTypeChar.longObject, DataTypeChar.longArray, DataTypeChar.longString):
+			return SizeClass.long
+		else:
+			raise Exception("Unknown data type char: " + self.char)
+	
+	# @property
+	# def hasJsonValue(self):
+	# 	return self in _jsonTypes
+	
+	def _getJsonValue(self):
 		if self == DataTypeChar.emptyObject:
 			return {}
 		elif self == DataTypeChar.emptyArray:
@@ -90,8 +100,11 @@ class DataTypeChar(Enum):
 		elif self == DataTypeChar.nullValue:
 			return None
 		else:
-			raise Exception("Data type char " + self.value + " has no json value")
+			raise Exception("Data type char " + self.char + " has no json value")
 	
+for dataType in DataTypeChar:
+	dataType._init()
+
 class DataType:
 	char: DataTypeChar
 
@@ -104,8 +117,13 @@ class DataType:
 		return DataType(char)
 	
 	def writeBytes(self, bytes: BinaryWriter):
-		bytes.writeString(self.char.value)
+		bytes.writeString(self.char.char)
 	
 	@property
 	def size(self) -> int:
 		return 1
+
+_dataTypeCharFromChar = {
+	e.value: e
+	for e in DataTypeChar
+}
