@@ -16,8 +16,7 @@ pub fn read_array_from_data_type(
     if length == 0 {
         return Ok(Value::Array(Vec::new()));
     }
-    let mut array = Vec::new();
-    array.reserve_exact(length);
+    let mut array = Vec::with_capacity(length);
     for _ in 0..length {
         array.push(read_value(bytes, keys_table)?);
     }

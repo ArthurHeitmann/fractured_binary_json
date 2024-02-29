@@ -129,10 +129,7 @@ impl ByteStream {
     pub fn read_string(&mut self, count: usize) -> Result<String, String> {
         let slice = self.read(count)?;
         let string = String::from_utf8(slice.to_vec());
-        match string {
-            Ok(s) => return Ok(s),
-            Err(e) => return Err(e.to_string()),
-        }
+        return string.map_err(|e| e.to_string());
     }
 
     pub fn as_bytes(&self) -> &Vec<u8> {

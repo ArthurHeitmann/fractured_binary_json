@@ -16,7 +16,7 @@ pub fn read_object_from_data_type(
     if length == 0 {
         return Ok(Value::Object(Map::new()));
     }
-    let mut map: Map<String, Value> = Map::new();
+    let mut map = Map::with_capacity(length);
     for _ in 0..length {
         let key_index = bytes.read_u16()?;
         let key = keys_table.lookup_index(key_index as usize)?;

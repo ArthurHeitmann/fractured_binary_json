@@ -7,7 +7,7 @@ use pyo3::{
 };
 use serde_json::{Map, Number, Value};
 
-use frac_json as fj;
+use ::frac_json as fj;
 
 create_exception!(frac_json, FracJsonError, pyo3::exceptions::PyException);
 
