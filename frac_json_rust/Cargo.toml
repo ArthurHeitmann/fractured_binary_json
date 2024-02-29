@@ -1,0 +1,6 @@
+[workspace]
+members = [
+	"frac_json",
+	"frac_json_node",
+	"frac_json_py",
+]

@@ -28,9 +28,10 @@ struct Header {
 
 - `magic`: `FJ`
 - `config` is a bitmap
-  - `0000XXXX` version
+  - `0000XXXX` version. Each new version indicates a breaking change.
   - `00010000` indicates that a local keys table exists
   - `00100000` indicates that all bytes after the header are compressed with zstd
+  - `10000000` indicates that the following byte is an additional config byte. Additional config bytes repeat as long as the last bit is `1`. These additional bytes might be used by future versions.
 
 ### Keys table
 
