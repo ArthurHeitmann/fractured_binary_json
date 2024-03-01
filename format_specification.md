@@ -2,20 +2,20 @@
 
 ## Goals
 
-Highly storage efficient across a very large number of documents.
+Highly storage efficient across a very large number of objects.
 
 ## Core ideas
 
 In order to optimize storage efficiency, 3 main ideas are used:
-- global keys table: The biggest difference between JSON and databases stat store data in tables, is that ever value, needs to have a key name. Depending on how long the name is and much data by the value is used, the key names along can use up close to half if not more of all storage. By replacing all keys across a large number of documents with a unique ID, a lot of repeated text can be saved. All keys used are then stored in a central table.
+- global keys table: The biggest difference between JSON and SQL databases, is that every object value, needs to have a key name. Depending on how long the name is and how much data by the value is used, the key names might make up more than half of the size. By replacing all keys across a large number of documents with a unique ID, a lot of repeated text can be saved. All keys used are then stored in a central table.
 - binary encoding: JSON encodes everything in text form, including numbers. By storing them in binary form with varying levels of precision, a good amount of space can be saved.
-- dedicated datatype for empty "objects": JSON has a small number of data types which can all be stored in a single byte. By marking empty objects (`{}`, `[]`), 0 numbers, bool and null values within the data type bytes, additional bytes for the value itself can be skipped.
+- dedicated data type for empty "objects": JSON has a small number of data types which can all be stored in a single byte. By marking empty objects (`{}`, `[]`), 0 numbers, bool and null values within the data type bytes, additional bytes for the value itself can be skipped.
 
 ## File structure
 
 1. Header
 2. Local keys table (optional)
-3. Document/root element
+3. Root value
 
 ### Header
 
@@ -26,50 +26,45 @@ struct Header {
 }
 ```
 
-- `magic`: `FJ`
-- `config` is a bitmap
+- `magic`: must be `FJ`
+- `config`
   - `0000XXXX` version. Each new version indicates a breaking change.
-  - `00010000` indicates that a local keys table exists
-  - `00100000` indicates that all bytes after the header are compressed with zstd
-  - `10000000` indicates that the following byte is an additional config byte. Additional config bytes repeat as long as the last bit is `1`. These additional bytes might be used by future versions.
+  - `00010000` indicates that a local keys table exists.
+  - `00100000` indicates that all bytes after the header are compressed with zstd. This is mainly for convenience. If you really care about storage efficiency, you won't get around compression anyways, so might as well include it here.
 
 ### Keys table
 
-The keys table is a list of ID to key name pairs. A global table is stored separately from each file. If a key is not present in the global keys table, it is added to the local file table.
+The keys table is a list of object key names. A global table is optionally stored separately. When encoding a value, if a key is not present in the global keys table, it is added to the local file table.
+
+Global key indices map from 0 to 2¹⁵ - 1 (0x7FFF). Local key indices start from 2¹⁵ (0x8000).
 
 ```C
 struct KeysTable {
+	uint8 config;
 	uint16 count;
 	KeyMapping[] keys;
 }
 ```
 
-The keys are stored in ascending order of the index.
-
-A lookup in the global table is done directly though the index. In the local table the index is: key index - 32769.
+`config` is a currently unused byte. Any value other than 0 should throw an error.
 
 #### Key Mapping
 
 ```C
 struct KeyMapping {
-	uint16 index;
 	uint8 keyLength;
-	char[] keyName;
+	string keyName;
 }
 ```
 
-`index`: Global key indices go from 0 to 2¹⁵ (32768). Local key indices start at 2¹⁵ + 1 (32769).
-`key length`: indicates the length of the key name in bytes.
-`key name`: Name of the key.
+`keyLength`: indicates the length of the key name in bytes.
+`keyName`: Name of the object key.
 
-### Document
+### Value
 
-The high level data types are the same as with JSON. At the top level is an `element`.
+Only JSON data types are supported. At the root is a `value`.
 
 ```
-element
-	value
-
 value
 	object
 	array
@@ -79,83 +74,73 @@ value
 	null
 
 object
-	key: element
+	key: value
 
 array
-	element[]
+	value[]
 ```
 
 ## Data types
 
-The data type is denoted by a single char. It specifies the JSON data type as well as the size class.
+The data type of a value and potentially the value itself is encoded in a single byte. The value range of 0x00 - 0xFF is mapped to different types.
+
+0x00 - 0x0C is for primitives.
+
+0x0D - 0x15 is for variable length data, where the length is stored in the following bytes (uint8, uint16 or uint32).
+
+0x16 - 0xFD maps to data types where the value or length is encoded in the byte itself. Value 0 maps to the start value. The highest value maps to the end value.
+
+The `reserved` type is reserved for potential future uses. When encountered, an error should be thrown.
 
 All text is UTF-8 encoded.
 
 Little endian is used.
 
-Data types:
-- object
-	- empty object `{}` (o)
-	- small object (O)
-	- big object (p)
-	- long object (P)
-- array
-	- empty array `[]` (a)
-	- small array (A)
-	- big array (c)
-	- long array (C)
-- string
-	- empty string `""` (s)
-	- small string (S)
-	- big string (t)
-	- long string (T)
-- number
-	- integer
-		- 0 (0)
-		- int8 (i)
-		- uint8 (I)
-		- int16 (j)
-		- uint16 (J)
-		- int32 (k)
-		- uint32 (K)
-		- int64 (l)
-		- uint64 (L)
-	- floating point
-		- 0.0 (f)
-		- float (F)
-		- double (d)
-- bool
-	- false (b)
-	- true (B)
-- null (z)
+| type        | start | end | count  | notes           |
+|-------------|-------|-----|--------|-----------------|
+| null        | 0     | 0   | 1      |                 |
+| false       | 1     | 1   | 1      |                 |
+| true        | 2     | 2   | 1      |                 |
+| int8        | 3     | 3   | 1      |                 |
+| uint8       | 4     | 4   | 1      |                 |
+| int16       | 5     | 5   | 1      |                 |
+| uint16      | 6     | 6   | 1      |                 |
+| int32       | 7     | 7   | 1      |                 |
+| uint32      | 8     | 8   | 1      |                 |
+| int64       | 9     | 9   | 1      |                 |
+| uint64      | A     | A   | 1      |                 |
+| float       | B     | B   | 1      |                 |
+| double      | C     | C   | 1      |                 |
+| string 8    | D     | D   | 1      |                 |
+| string 16   | E     | E   | 1      |                 |
+| string 32   | F     | F   | 1      |                 |
+| object 8    | 10    | 10  | 1      |                 |
+| object 16   | 11    | 11  | 1      |                 |
+| object 32   | 12    | 12  | 1      |                 |
+| array 8     | 13    | 13  | 1      |                 |
+| array 16    | 14    | 14  | 1      |                 |
+| array 32    | 15    | 15  | 1      |                 |
+| tiny string | 16    | 6D  | 88     | range:   0 - 87 |
+| tiny object | 6E    | 9D  | 48     | range:   0 - 47 |
+| tiny array  | 9E    | BD  | 32     | range:   0 - 31 |
+| tiny int    | BE    | FD  | 64     | range: -32 - 31 |
+| reserved    | FE    | FF  | 2      |                 |
 
-#### Data sizes
-
-The data type for objects, arrays, and strings specifies 4 size classes:
-
-| class | size |            |
-|-------|------|------------|
-| empty | 0    |            |
-| small | 2⁸   | 256        |
-| big   | 2¹⁶  | 65536      |
-| long  | 2³²  | 4294967296 |
-
-The `size` data type in the following structs is based on the size class specified in the data type.
-
-#### Element
+### Element
 
 ```C
 struct Element {
-	char dataType;
+	uint8 dataType;
 	Value value;
 }
 ```
+
+### Variable length data types
 
 #### Object
 
 ```C
 struct Object {
-	size count;
 	ObjectEntry entries[]
 }
 ```
@@ -167,42 +152,40 @@ struct ObjectEntry {
 }
 ```
 
+If during decoding a `keyIndex` cannot be found in any keys table, an error should be thrown.
+
 #### Array
 
 ```C
 struct Array {
-	size count;
 	Element[] element;
 }
 ```
 
 #### String
 
-```C
-struct String {
-	size count;
-	char[] string;
-}
-```
+- UTF-8 encoded byte sequence
+- has no terminator
 
-- UTF-8 encoded
-- no terminator
+### Numbers
 
-#### Numbers
+When encoding, the smallest possible representation is used.
 
-When encoding the smallest possible representation is used.
+Possible integer types: tiny int, int8, int16, int32, int64, uint8, uint16, uint32, uint64.
 
-Possible integer types: int8, int16, int32, int64, uint8, uint16, uint32, uint64.  
-For now floating point numbers are all float.
+The tiny int type maps to the values 0x16 - 0x55 in the data type byte. The value should be read
+as an unsigned int and a bias of 32 subtracted from it. Giving a value range of -32 - 31.
+
+The decision whether a floating point number is 32 bit or 64 bit encoded, is an implementation detail. Though as a guideline, if the difference is less than 0.00001%, then 32 bits can be used.
 
 ## Limitations
 
 |                                      |            |
 |--------------------------------------|------------|
-| Total possible number of unique keys | 65536      |
-| Unique global keys                   | 32768      |
-| Unique local keys                    | 32768      |
-| Longest key name                     | 256        |
-| Maximum number of object entries     | 4294967296 |
-| Maximum number of array entries      | 4294967296 |
-| Longest string (in bytes)            | 4294967296 |
+| Total possible number of unique keys | 65534      |
+| Unique global keys                   | 32767      |
+| Unique local keys                    | 32767      |
+| Longest key name                     | 255        |
+| Maximum number of object entries     | 4294967295 |
+| Maximum number of array entries      | 4294967295 |
+| Longest string (in bytes)            | 4294967295 |

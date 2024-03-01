@@ -24,15 +24,15 @@ impl Config {
             return Err(format!("Invalid magic {:?}", magic));
         }
         let config = bytes.read_u8()?;
-        let mut has_more = (config & 0b10000000) != 0;
-        while has_more {
-            has_more = (bytes.read_u8()? & 0b10000000) != 0;
-        }
-        return Ok(Config {
+        let config = Config {
             version: config & 0b00001111,
             uses_local_keys_table: (config & 0b00010000) != 0,
             is_zstd_compressed: (config & 0b00100000) != 0,
-        });
+        };
+        if config.version > CURRENT_VERSION {
+            return Err(format!("Unsupported version {}", config.version));
+        }
+        return Ok(config);
     }
 
     pub fn write_header(&self, bytes: &mut ByteStream) -> Result<(), String> {

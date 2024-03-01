@@ -9,7 +9,7 @@ use serde_json::Value;
 use frac_json;
 
 #[napi]
-fn encode_frac_json(
+pub fn encode_frac_json(
   value: Value,
   global_keys_table_bytes: Option<Buffer>,
   compression_level: Option<i32>,
@@ -31,7 +31,7 @@ fn encode_frac_json(
 }
 
 #[napi]
-fn decode_frac_json(
+pub fn decode_frac_json(
   frac_json_bytes: Buffer,
   global_keys_table_bytes: Option<Buffer>,
 ) -> Result<Value, Error> {

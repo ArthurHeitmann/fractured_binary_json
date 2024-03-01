@@ -3,3 +3,6 @@
 .idea/
 *.pyc
 python_lib/test
+.frac_json_node
+frac_json_python
+frac_json_rust_old
