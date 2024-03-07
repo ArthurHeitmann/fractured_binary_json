@@ -19,6 +19,22 @@ impl ByteStream {
         }
     }
 
+    pub fn seek(&mut self, pos: usize) -> Result<(), String> {
+        if pos > self.bytes.len() {
+            return Err(format!(
+                "Cannot seek to position {}! Only {} items in ByteStream",
+                pos,
+                self.bytes.len()
+            ));
+        }
+        self.pos = pos;
+        return Ok(());
+    }
+
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
     fn check_read_will_error(&self, count: usize) -> Result<(), String> {
         if self.pos + count > self.bytes.len() {
             let error_str = format!(

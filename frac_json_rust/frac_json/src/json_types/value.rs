@@ -9,7 +9,7 @@ use super::{
     string::{read_string, write_string},
 };
 
-const READ_VALUE_FROM_TYPE: [fn(&mut ByteStream, &KeysTables) -> Result<Value, String>; 22] = [
+const READ_VALUE_FROM_TYPE: [fn(&mut ByteStream, &mut KeysTables) -> Result<Value, String>; 22] = [
     |_, _| Ok(Value::Null),
     |_, _| Ok(Value::Bool(false)),
     |_, _| Ok(Value::Bool(true)),
@@ -61,7 +61,7 @@ const READ_VALUE_FROM_TYPE: [fn(&mut ByteStream, &KeysTables) -> Result<Value, S
     },
 ];
 
-pub fn read_value(bytes: &mut ByteStream, keys_table: &KeysTables) -> Result<Value, String> {
+pub fn read_value(bytes: &mut ByteStream, keys_table: &mut KeysTables) -> Result<Value, String> {
     let data_type_char = bytes.read_u8()?;
     if data_type_char < DataTypes::TINY_STRING {
         let index = data_type_char as usize;

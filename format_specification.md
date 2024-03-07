@@ -13,33 +13,12 @@ In order to optimize storage efficiency, 3 main ideas are used:
 
 ## File structure
 
-1. Header
-2. Local keys table (optional)
-3. Root value
+### Global Keys table
 
-### Header
+The global keys table is a list of object key names, that are shared across different files. It is stored separately and not part of the main fractured json file. Keys are referenced by index.
 
 ```C
-struct Header {
-	char[2] magic;
-	uint8 config;
-}
-```
-
-- `magic`: must be `FJ`
-- `config`
-  - `0000XXXX` version. Each new version indicates a breaking change.
-  - `00010000` indicates that a local keys table exists.
-  - `00100000` indicates that all bytes after the header are compressed with zstd. This is mainly for convenience. If you really care about storage efficiency, you won't get around compression anyways, so might as well include it here.
-
-### Keys table
-
-The keys table is a list of object key names. A global table is optionally stored separately. When encoding a value, if a key is not present in the global keys table, it is added to the local file table.
-
-Global key indices map from 0 to 2¹⁵ - 1 (0x7FFF). Local key indices start from 2¹⁵ (0x8000).
-
-```C
-struct KeysTable {
+struct GlobalKeysTable {
 	uint8 config;
 	uint16 count;
 	KeyMapping[] keys;
@@ -59,6 +38,26 @@ struct KeyMapping {
 
 `keyLength`: indicates the length of the key name in bytes.
 `keyName`: Name of the object key.
+
+### Fractured JSON file
+
+- Header
+- Root value
+
+### Header
+
+```C
+struct Header {
+	char[2] magic;
+	uint8 config;
+}
+```
+
+- `magic`: must be `FJ`
+- `config`
+  - `0000XXXX` version. Each new version indicates a breaking change.
+  - `00010000` indicates that all bytes after the header are compressed with zstandard. This is mainly for convenience. If you really care about storage efficiency, you won't get around compression anyways, so might as well include it here.
+  - `00100000` indicates that a separate dictionary is needed for decompression.
 
 ### Value
 
@@ -147,12 +146,37 @@ struct Object {
 
 ```C
 struct ObjectEntry {
-	uint16 keyIndex;
+	Key key;
 	Element element;
 }
 ```
+`Key` starts with an `uint8` indicating how the key is encoded. The 256 possible values are mapped to the following types:
 
-If during decoding a `keyIndex` cannot be found in any keys table, an error should be thrown.
+| type                    | start | end  | count |
+|-------------------------|-------|------|-------|
+| immediate v_uint16      | 0     | 0    | 1     |
+| back reference v_uint16 | 1     | 1    | 1     |
+| global index v_uint16   | 2     | 2    | 1     |
+| immediate tiny_u8       | 3     | 56   | 84    |
+| back reference tiny_u8  | 57    | AA   | 84    |
+| global index tiny_u8    | AB    | FE   | 84    |
+| reserved                | FF    | FF   | 1     |
+
+Key values or sizes are encoded either as a variable length unsigned integer or encoded in the byte itself.
+
+Immediate keys are encoded as strings directly after the size is encoded. Each immediate key is unique and assigned an index implicitly.  
+Back reference keys reference an immediate key that was already encountered.  
+Global index keys reference a key in the global keys table.  
+0xFF is reserved for potential future uses. When encountered, an error should be thrown.
+
+`tiny_u8` is encoded as `value` - `start`.
+
+`v_uint16` is encoded as a variable length unsigned integer. One bit indicates whether another byte follows. Up to 3 bytes are allowed, to allow the full uint16 range  
+`10000000` indicates that another byte follows.  
+The value is encoded in the bytes b0[, b1, b2] as follows:  
+`b0 & 0x7F | (b1 & 0x7F) << 7 | (b2 & 0x03) << 14`
+
+If during decoding a key index cannot be found, an error should be thrown.
 
 #### Array
 
@@ -182,9 +206,9 @@ The decision whether a floating point number is 32 bit or 64 bit encoded, is an 
 
 |                                      |            |
 |--------------------------------------|------------|
-| Total possible number of unique keys | 65534      |
-| Unique global keys                   | 32767      |
-| Unique local keys                    | 32767      |
+| Total possible number of unique keys | 131070     |
+| Unique global keys                   | 65535      |
+| Unique local keys                    | 65535      |
 | Longest key name                     | 255        |
 | Maximum number of object entries     | 4294967295 |
 | Maximum number of array entries      | 4294967295 |

@@ -1,37 +1,18 @@
 use crate::byte_stream::ByteStream;
 
-const GLOBAL_TABLE_END: usize = 0x7FFF;
-const LOCAL_TABLE_OFFSET: usize = 0x8000;
-const MAX_TABLE_SIZE: usize = 0x7FFF;
 
-#[derive(Copy, Clone, Debug)]
-pub enum KeysTableLocation {
-    Global,
-    Local,
-}
+pub const MAX_TABLE_SIZE: usize = 0xFFFF;
 
-pub struct KeysTable {
+pub struct GlobalKeysTable {
     table: Vec<String>,
-    location: KeysTableLocation,
-    key_offset: usize,
 }
 
-impl KeysTable {
-    pub fn new(table: Vec<String>, location: KeysTableLocation) -> Self {
-        KeysTable {
-            table,
-            location: location,
-            key_offset: match location {
-                KeysTableLocation::Global => 0,
-                KeysTableLocation::Local => LOCAL_TABLE_OFFSET,
-            },
-        }
+impl GlobalKeysTable {
+    pub fn new(table: Vec<String>) -> Self {
+        GlobalKeysTable { table }
     }
 
-    pub fn read_keys_table(
-        bytes: &mut ByteStream,
-        location: KeysTableLocation,
-    ) -> Result<KeysTable, String> {
+    pub fn read_keys_table(bytes: &mut ByteStream) -> Result<GlobalKeysTable, String> {
         let config = bytes.read_u8()?;
         if config != 0 {
             return Err(format!("Unsupported keys table config {}", config));
@@ -40,9 +21,9 @@ impl KeysTable {
         let mut mappings: Vec<String> = Vec::new();
         mappings.reserve_exact(count.into());
         for _ in 0..count {
-            mappings.push(KeysTable::read_key_mapping(bytes)?);
+            mappings.push(GlobalKeysTable::read_key_mapping(bytes)?);
         }
-        return Ok(KeysTable::new(mappings, location));
+        return Ok(GlobalKeysTable::new(mappings));
     }
 
     fn read_key_mapping(bytes: &mut ByteStream) -> Result<String, String> {
@@ -75,8 +56,7 @@ impl KeysTable {
     pub fn lookup_index(&self, index: usize) -> Result<&String, String> {
         if index >= self.table.len() {
             return Err(format!(
-                "Index {index} is not in {:?} KeysTable of size {}",
-                self.location,
+                "Index {index} is not in GlobalKeysTable of size {}",
                 self.table.len()
             ));
         }
@@ -92,61 +72,78 @@ impl KeysTable {
 
     pub fn push_key(&mut self, key: &String) -> usize {
         self.table.push(key.to_string());
-        return self.table.len() - 1 + self.key_offset;
+        return self.table.len() - 1;
+    }
+}
+
+struct LocalKeysTable {
+    encountered_keys: Vec<String>,
+}
+
+impl LocalKeysTable {
+    pub fn new(encountered_keys: Vec<String>) -> LocalKeysTable {
+        LocalKeysTable { encountered_keys }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.table.is_empty()
+    pub fn lookup_index(&self, index: usize) -> Result<&String, String> {
+        if index >= self.encountered_keys.len() {
+            return Err(format!(
+                "Index {index} is not in LocalKeysTable of size {}",
+                self.encountered_keys.len()
+            ));
+        }
+        return Ok(&self.encountered_keys[index]);
     }
 
-    pub fn is_full(&self) -> bool {
-        self.table.len() >= MAX_TABLE_SIZE
+    pub fn find_key(&self, key: &String) -> Option<usize> {
+        if self.encountered_keys.is_empty() {
+            return None;
+        }
+        return self.encountered_keys.iter().position(|x| x == key);
+    }
+
+    pub fn push_key(&mut self, key: String) -> Result<(), String> {
+        if self.encountered_keys.len() >= MAX_TABLE_SIZE {
+            return Err(format!(
+                "LocalKeysTable is full! {} keys",
+                self.encountered_keys.len()
+            ));
+        }
+        self.encountered_keys.push(key);
+        return Ok(());
     }
 }
 
 pub struct KeysTables {
-    pub local_table: KeysTable,
-    pub global_table: KeysTable,
+    local_table: LocalKeysTable,
+    global_table: GlobalKeysTable,
 }
 
 impl KeysTables {
-    pub fn make(local_table: Option<KeysTable>, global_table: Option<KeysTable>) -> KeysTables {
+    pub fn make(global_table: Option<GlobalKeysTable>) -> KeysTables {
         KeysTables {
-            local_table: local_table
-                .unwrap_or_else(|| KeysTable::new(Vec::new(), KeysTableLocation::Local)),
-            global_table: global_table
-                .unwrap_or_else(|| KeysTable::new(Vec::new(), KeysTableLocation::Global)),
+            local_table: LocalKeysTable::new(Vec::new()),
+            global_table: global_table.unwrap_or_else(|| GlobalKeysTable::new(Vec::new())),
         }
     }
 
-    pub fn lookup_index(&self, index: usize) -> Result<&String, String> {
-        let table: &KeysTable;
-        let relative_index: usize;
-        if index <= GLOBAL_TABLE_END {
-            table = &self.global_table;
-            relative_index = index;
-        } else {
-            table = &self.local_table;
-            relative_index = index - LOCAL_TABLE_OFFSET;
-        }
-        return table.lookup_index(relative_index);
+    pub fn lookup_global_index(&self, index: usize) -> Result<&String, String> {
+        self.global_table.lookup_index(index)
     }
 
-    pub fn lookup_key_or_insert_locally(&mut self, key: &String) -> Result<usize, String> {
-        if let Some(index) = self.global_table.find_key(key) {
-            return Ok(index);
-        }
-        if let Some(index) = self.local_table.find_key(key) {
-            return Ok(index + LOCAL_TABLE_OFFSET);
-        }
-        if self.local_table.is_full() {
-            return Err("Local keys table is full".to_string());
-        }
-        let new_index = self.local_table.push_key(key);
-        return Ok(new_index);
+    pub fn lookup_local_index(&self, index: usize) -> Result<&String, String> {
+        self.local_table.lookup_index(index)
     }
 
-    pub fn has_local_keys_table(&self) -> bool {
-        !self.local_table.is_empty()
+    pub fn find_global_index(&self, key: &String) -> Option<usize> {
+        self.global_table.find_key(key)
+    }
+
+    pub fn find_local_index(&self, key: &String) -> Option<usize> {
+        self.local_table.find_key(key)
+    }
+
+    pub fn on_immediate_key(&mut self, key: String) -> Result<(), String> {
+        self.local_table.push_key(key)
     }
 }

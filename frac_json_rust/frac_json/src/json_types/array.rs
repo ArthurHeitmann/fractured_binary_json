@@ -7,7 +7,7 @@ use super::value::{read_value, write_value};
 pub fn read_array(
     bytes: &mut ByteStream,
     length: usize,
-    keys_table: &KeysTables,
+    keys_table: &mut KeysTables,
 ) -> Result<Value, String> {
     if length == 0 {
         return Ok(Value::Array(Vec::new()));
