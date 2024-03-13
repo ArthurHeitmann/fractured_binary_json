@@ -1,7 +1,7 @@
 use crate::byte_stream::ByteStream;
 
-
 pub const MAX_TABLE_SIZE: usize = 0xFFFF;
+pub const MAX_KEY_LENGTH: usize = 0xFFFF;
 
 pub struct GlobalKeysTable {
     table: Vec<String>,
@@ -27,7 +27,7 @@ impl GlobalKeysTable {
     }
 
     fn read_key_mapping(bytes: &mut ByteStream) -> Result<String, String> {
-        let key_length = bytes.read_u8()?;
+        let key_length = bytes.read_u16()?;
         return Ok(bytes.read_string(key_length.into())?);
     }
 
@@ -45,10 +45,10 @@ impl GlobalKeysTable {
     }
 
     fn write_key_mapping(&self, key: &String, bytes: &mut ByteStream) -> Result<(), String> {
-        if key.len() >= 0xFF {
+        if key.len() > MAX_KEY_LENGTH {
             return Err(format!("Key '{}' too long! {}", key, key.len()));
         }
-        bytes.write_u8(key.len() as u8)?;
+        bytes.write_u16(key.len() as u16)?;
         bytes.write_string(key)?;
         return Ok(());
     }
@@ -67,22 +67,43 @@ impl GlobalKeysTable {
         if self.table.is_empty() {
             return None;
         }
-        return self.table.iter().position(|x| x == key);
-    }
-
-    pub fn push_key(&mut self, key: &String) -> usize {
-        self.table.push(key.to_string());
-        return self.table.len() - 1;
+        // return self.table.iter().position(|x| x == key);
+        return self.table.binary_search(key).ok();
     }
 }
 
-struct LocalKeysTable {
+struct LocalEncodeKeysTable<'a> {
+    encountered_keys: Vec<&'a String>,
+}
+
+struct LocalDecodeKeysTable {
     encountered_keys: Vec<String>,
 }
 
-impl LocalKeysTable {
-    pub fn new(encountered_keys: Vec<String>) -> LocalKeysTable {
-        LocalKeysTable { encountered_keys }
+impl<'a> LocalEncodeKeysTable<'a> {
+    pub fn new(encountered_keys: Vec<&String>) -> LocalEncodeKeysTable {
+        LocalEncodeKeysTable { encountered_keys }
+    }
+
+    pub fn find_key(&self, key: &String) -> Option<usize> {
+        if self.encountered_keys.is_empty() {
+            return None;
+        }
+        return self.encountered_keys.iter().position(|x| *x == key);
+    }
+
+    pub fn push_key_ref(&mut self, key: &'a String) {
+        if self.encountered_keys.len() < MAX_TABLE_SIZE {
+            self.encountered_keys.push(key);
+        }
+    }
+}
+
+impl LocalDecodeKeysTable {
+    pub fn new() -> LocalDecodeKeysTable {
+        LocalDecodeKeysTable {
+            encountered_keys: Vec::new(),
+        }
     }
 
     pub fn lookup_index(&self, index: usize) -> Result<&String, String> {
@@ -95,34 +116,51 @@ impl LocalKeysTable {
         return Ok(&self.encountered_keys[index]);
     }
 
-    pub fn find_key(&self, key: &String) -> Option<usize> {
-        if self.encountered_keys.is_empty() {
-            return None;
+    pub fn push_key(&mut self, key: &String) {
+        if self.encountered_keys.len() < MAX_TABLE_SIZE {
+            self.encountered_keys.push(key.clone());
         }
-        return self.encountered_keys.iter().position(|x| x == key);
-    }
-
-    pub fn push_key(&mut self, key: String) -> Result<(), String> {
-        if self.encountered_keys.len() >= MAX_TABLE_SIZE {
-            return Err(format!(
-                "LocalKeysTable is full! {} keys",
-                self.encountered_keys.len()
-            ));
-        }
-        self.encountered_keys.push(key);
-        return Ok(());
     }
 }
 
-pub struct KeysTables {
-    local_table: LocalKeysTable,
+pub struct EncodeKeysTables<'a> {
+    local_table: LocalEncodeKeysTable<'a>,
     global_table: GlobalKeysTable,
 }
 
-impl KeysTables {
-    pub fn make(global_table: Option<GlobalKeysTable>) -> KeysTables {
-        KeysTables {
-            local_table: LocalKeysTable::new(Vec::new()),
+pub struct DecodeKeysTables {
+    local_table: LocalDecodeKeysTable,
+    global_table: GlobalKeysTable,
+}
+
+impl<'a> EncodeKeysTables<'a> {
+    pub fn make(
+        local_table: Vec<&String>,
+        global_table: Option<GlobalKeysTable>,
+    ) -> EncodeKeysTables {
+        EncodeKeysTables {
+            local_table: LocalEncodeKeysTable::new(local_table),
+            global_table: global_table.unwrap_or_else(|| GlobalKeysTable::new(Vec::new())),
+        }
+    }
+
+    pub fn find_global_index(&self, key: &String) -> Option<usize> {
+        self.global_table.find_key(key)
+    }
+
+    pub fn find_local_index(&self, key: &String) -> Option<usize> {
+        self.local_table.find_key(key)
+    }
+
+    pub fn on_immediate_key<'b: 'a>(&mut self, key: &'b String) {
+        self.local_table.push_key_ref(key);
+    }
+}
+
+impl DecodeKeysTables {
+    pub fn make(global_table: Option<GlobalKeysTable>) -> DecodeKeysTables {
+        DecodeKeysTables {
+            local_table: LocalDecodeKeysTable::new(),
             global_table: global_table.unwrap_or_else(|| GlobalKeysTable::new(Vec::new())),
         }
     }
@@ -135,15 +173,7 @@ impl KeysTables {
         self.local_table.lookup_index(index)
     }
 
-    pub fn find_global_index(&self, key: &String) -> Option<usize> {
-        self.global_table.find_key(key)
-    }
-
-    pub fn find_local_index(&self, key: &String) -> Option<usize> {
-        self.local_table.find_key(key)
-    }
-
-    pub fn on_immediate_key(&mut self, key: String) -> Result<(), String> {
-        self.local_table.push_key(key)
+    pub fn on_immediate_key(&mut self, key: &String) {
+        self.local_table.push_key(key);
     }
 }

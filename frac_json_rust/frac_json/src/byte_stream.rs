@@ -12,9 +12,9 @@ impl ByteStream {
         }
     }
 
-    pub fn make(items: &Vec<u8>) -> ByteStream {
+    pub fn make(items: Vec<u8>) -> ByteStream {
         ByteStream {
-            bytes: items.clone(),
+            bytes: items,
             pos: 0,
         }
     }
@@ -144,8 +144,8 @@ impl ByteStream {
 
     pub fn read_string(&mut self, count: usize) -> Result<String, String> {
         let slice = self.read(count)?;
-        let string = String::from_utf8(slice.to_vec());
-        return string.map_err(|e| e.to_string());
+        let string = unsafe { String::from_utf8_unchecked(slice.to_vec()) };
+        return Ok(string);
     }
 
     pub fn as_bytes(&self) -> &Vec<u8> {

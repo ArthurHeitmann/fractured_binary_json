@@ -13,32 +13,6 @@ In order to optimize storage efficiency, 3 main ideas are used:
 
 ## File structure
 
-### Global Keys table
-
-The global keys table is a list of object key names, that are shared across different files. It is stored separately and not part of the main fractured json file. Keys are referenced by index.
-
-```C
-struct GlobalKeysTable {
-	uint8 config;
-	uint16 count;
-	KeyMapping[] keys;
-}
-```
-
-`config` is a currently unused byte. Any value other than 0 should throw an error.
-
-#### Key Mapping
-
-```C
-struct KeyMapping {
-	uint8 keyLength;
-	string keyName;
-}
-```
-
-`keyLength`: indicates the length of the key name in bytes.
-`keyName`: Name of the object key.
-
 ### Fractured JSON file
 
 - Header
@@ -202,14 +176,39 @@ as an unsigned int and a bias of 32 subtracted from it. Giving a value range of 
 
 The decision whether a floating point number is 32 bit or 64 bit encoded, is an implementation detail. Though as a guideline, if the difference is less than 0.00001%, then 32 bits can be used.
 
+## Global Keys table
+
+The global keys table is a list of object key names, that are shared across different files. It is stored separately and not part of the main fractured json file. Keys are referenced by index.
+All keys are sorted in ascending order of their byte representation.
+
+```C
+struct GlobalKeysTable {
+	uint8 config;
+	uint16 count;
+	KeyMapping[] keys;
+}
+```
+
+`config` is a currently unused byte. Any value other than 0 should throw an error.
+
+#### Key Mapping
+
+```C
+struct KeyMapping {
+	uint16 keyLength;
+	string keyName;
+}
+```
+
+`keyLength`: indicates the length of the key name in bytes.
+`keyName`: Name of the object key.
+
 ## Limitations
 
 |                                      |            |
 |--------------------------------------|------------|
-| Total possible number of unique keys | 131070     |
 | Unique global keys                   | 65535      |
-| Unique local keys                    | 65535      |
-| Longest key name                     | 255        |
+| Longest key name                     | 65535      |
 | Maximum number of object entries     | 4294967295 |
 | Maximum number of array entries      | 4294967295 |
 | Longest string (in bytes)            | 4294967295 |

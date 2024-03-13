@@ -1,9 +1,11 @@
 use serde_json::{Map, Value};
 
-use crate::{byte_stream::ByteStream, keys_table::KeysTables};
+use crate::{
+    byte_stream::ByteStream,
+    keys_table::{DecodeKeysTables, EncodeKeysTables, MAX_KEY_LENGTH},
+};
 
 use super::value::{read_value, write_value};
-
 
 const IMMEDIATE_TINY_START: u8 = 0x03;
 const BACK_REFERENCE_TINY_START: u8 = 0x57;
@@ -16,7 +18,7 @@ const GLOBAL_INDEX_MAX: u8 = RESERVED - GLOBAL_INDEX_TINY_START;
 pub fn read_object(
     bytes: &mut ByteStream,
     length: usize,
-    keys_table: &mut KeysTables,
+    keys_table: &mut DecodeKeysTables,
 ) -> Result<Value, String> {
     if length == 0 {
         return Ok(Value::Object(Map::new()));
@@ -25,24 +27,24 @@ pub fn read_object(
     for _ in 0..length {
         let key = read_key(bytes, keys_table)?;
         let value = read_value(bytes, keys_table)?;
-        map.insert(key.clone(), value);
+        map.insert(key, value);
     }
     return Ok(Value::Object(map));
 }
 
-pub fn write_object(
-    object: &Map<String, Value>,
+pub fn write_object<'a, 'b: 'a>(
+    object: &'b Map<String, Value>,
     bytes: &mut ByteStream,
-    keys_table: &mut KeysTables,
+    keys_table: &mut EncodeKeysTables<'a>,
 ) -> Result<(), String> {
     for (key, value) in object {
-        write_key(key.clone(), bytes, keys_table)?;
+        write_key(key, bytes, keys_table)?;
         write_value(value, bytes, keys_table)?;
     }
     Ok(())
 }
 
-fn read_key(bytes: &mut ByteStream, keys_table: &mut KeysTables) -> Result<String, String> {
+fn read_key(bytes: &mut ByteStream, keys_table: &mut DecodeKeysTables) -> Result<String, String> {
     let first_byte = bytes.read_u8()?;
     if first_byte < IMMEDIATE_TINY_START {
         let value = read_vu16(bytes)? as usize;
@@ -53,11 +55,11 @@ fn read_key(bytes: &mut ByteStream, keys_table: &mut KeysTables) -> Result<Strin
             }
             1 => {
                 let key = keys_table.lookup_local_index(value)?;
-                return Ok(key.to_string());
+                return Ok(key.clone());
             }
             2 => {
                 let key = keys_table.lookup_global_index(value)?;
-                return Ok(key.to_string());
+                return Ok(key.clone());
             }
             _ => return Err(format!("Invalid key index byte: {:02X}", first_byte)),
         }
@@ -70,21 +72,28 @@ fn read_key(bytes: &mut ByteStream, keys_table: &mut KeysTables) -> Result<Strin
     if first_byte < GLOBAL_INDEX_TINY_START {
         let key_index = read_tiny_u8(first_byte, BACK_REFERENCE_TINY_START)?;
         let key = keys_table.lookup_local_index(key_index as usize)?;
-        return Ok(key.to_string());
+        return Ok(key.clone());
     }
     if first_byte < RESERVED {
         let key_index = read_tiny_u8(first_byte, GLOBAL_INDEX_TINY_START)?;
         let key = keys_table.lookup_global_index(key_index as usize)?;
-        return Ok(key.to_string());
+        return Ok(key.clone());
     }
     return Err(format!("Invalid key index byte: {:02X}", first_byte));
 }
 
-fn write_key(
-    key: String,
+fn write_key<'a, 'b: 'a>(
+    key: &'b String,
     bytes: &mut ByteStream,
-    keys_table: &mut KeysTables,
+    keys_table: &mut EncodeKeysTables<'a>,
 ) -> Result<(), String> {
+    if key.len() > MAX_KEY_LENGTH {
+        return Err(format!(
+            "Key length {} exceeds MAX_KEY_LENGTH {}",
+            key.len(),
+            MAX_KEY_LENGTH
+        ));
+    }
     if let Some(global_index) = keys_table.find_global_index(&key) {
         write_type_and_value(
             bytes,
@@ -136,20 +145,20 @@ fn write_tiny_u8(value: u8, start: u8, bytes: &mut ByteStream) -> Result<(), Str
 fn read_immediate_key(
     bytes: &mut ByteStream,
     length: usize,
-    keys_table: &mut KeysTables,
+    keys_table: &mut DecodeKeysTables,
 ) -> Result<String, String> {
     let key = bytes.read_string(length)?;
-    keys_table.on_immediate_key(key.clone())?;
+    keys_table.on_immediate_key(&key);
     Ok(key)
 }
 
-fn write_immediate_key(
-    key: String,
+fn write_immediate_key<'a, 'b: 'a>(
+    key: &'b String,
     bytes: &mut ByteStream,
-    keys_table: &mut KeysTables,
+    keys_table: &mut EncodeKeysTables<'a>,
 ) -> Result<(), String> {
     bytes.write_string(&key)?;
-    keys_table.on_immediate_key(key)?;
+    keys_table.on_immediate_key(key);
     Ok(())
 }
 

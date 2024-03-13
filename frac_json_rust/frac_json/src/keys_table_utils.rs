@@ -2,21 +2,24 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::keys_table::{GlobalKeysTable, MAX_TABLE_SIZE};
+use crate::keys_table::{GlobalKeysTable, MAX_KEY_LENGTH, MAX_TABLE_SIZE};
 
-pub fn global_table_from_keys(keys: Vec<String>) -> GlobalKeysTable {
+pub fn global_table_from_keys(mut keys: Vec<String>) -> GlobalKeysTable {
+    keys.sort();
     GlobalKeysTable::new(keys)
 }
 
 pub fn global_table_from_json(json: &Value) -> Result<GlobalKeysTable, String> {
-    global_table_from_json_limited(json, MAX_TABLE_SIZE, 0)
+    global_table_from_json_limited(json, None, None)
 }
 
 pub fn global_table_from_json_limited(
     json: &Value,
-    max_count: usize,
-    occurrence_cutoff: usize,
+    max_count: Option<usize>,
+    occurrence_cutoff: Option<usize>,
 ) -> Result<GlobalKeysTable, String> {
+    let max_count = max_count.unwrap_or(MAX_TABLE_SIZE);
+    let occurrence_cutoff = occurrence_cutoff.unwrap_or(1);
     if max_count > MAX_TABLE_SIZE {
         return Err(format!(
             "max_count {} is greater than MAX_GLOBAL_TABLE_SIZE {}",
@@ -32,6 +35,9 @@ pub fn global_table_from_json_limited(
                 Value::Array(array) => pending_objects.extend(array),
                 Value::Object(object) => {
                     for (k, v) in object {
+                        if k.len() > MAX_KEY_LENGTH {
+                            continue;
+                        }
                         key_usages
                             .entry(k)
                             .and_modify(|count| *count += 1)
@@ -55,6 +61,6 @@ pub fn global_table_from_json_limited(
     };
     let key_usages = key_usages.filter(|(_k, v)| *v >= occurrence_cutoff);
 
-    let keys: Vec<String> = key_usages.map(|(k, _v)| k.to_string()).collect();
+    let keys: Vec<String> = key_usages.map(|(k, _v)| (*k).clone()).collect();
     return Ok(global_table_from_keys(keys));
 }

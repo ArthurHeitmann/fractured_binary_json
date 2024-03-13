@@ -9,13 +9,20 @@ fn find_res_folder() -> String {
         let files = std::fs::read_dir(folder).unwrap();
         for file in files {
             let file = file.unwrap();
-            let file_path = file.path().to_str().unwrap().to_string();
+            let file_path = file.path();
             let name = file.file_name();
             let name = name.to_str().unwrap();
+            let parent = file_path
+                .parent()
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_str()
+                .unwrap();
             if name == "res" {
                 return file.path().to_str().unwrap().to_string();
             }
-            if name == "benchmark" {
+            if name == "benchmark" && !parent.ends_with("target") {
                 return Path::new(&file_path)
                     .join("res")
                     .to_str()
@@ -163,6 +170,19 @@ impl Table {
             for (i, cell) in row.iter().enumerate() {
                 table_str.push_str(&format!(" {:<1$} |", cell, max_col_widths[i]));
             }
+            table_str.push_str("\n");
+        }
+        table_str
+    }
+
+    pub fn to_csv(self: &Self) -> String {
+        let mut table_str = String::new();
+        // Header
+        table_str.push_str(&self.header.join(","));
+        table_str.push_str("\n");
+        // Rows
+        for row in &self.rows {
+            table_str.push_str(&row.join(","));
             table_str.push_str("\n");
         }
         table_str

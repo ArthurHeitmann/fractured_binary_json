@@ -40,6 +40,7 @@ const TEST_FILE_NAMES_FOR_AVG: &[&str] = &[
 
 // const DICT_SIZE: usize = 10 * 1024 * 1024;
 const DICT_SIZE: usize = 100 * 1024;
+const COMPRESSION_LEVEL: i32 = 3;
 
 enum CompressionConfig {
     NoCompression,
@@ -175,11 +176,11 @@ fn benchmark_size_relative(file_names: &[&str]) -> Table {
 }
 
 fn benchmark_size_relative_avg(file_names: &[&str]) -> (Table, Table, Table) {
-    let test_function_presets: [(
+    let test_function_presets: &[(
         &str,
         fn(&Value, &String, bool, Option<&Vec<u8>>) -> (Vec<u8>, Duration),
         fn(&Vec<u8>, &String, bool, Option<&Vec<u8>>) -> (Value, Duration),
-    ); 6] = [
+    )] = &[
         ("plain text", encode_json, decode_json),
         //("UBJSON", encode_ubjson, decode_ubjson),
         ("MessagePack", encode_messagepack, decode_messagepack),
@@ -209,6 +210,10 @@ fn benchmark_size_relative_avg(file_names: &[&str]) -> (Table, Table, Table) {
             )
         }))
         .collect();
+    let uses_trained_dicts = test_functions.iter().any(|(_, _, _, config)| match config {
+        CompressionConfig::ZstdCompressionWithTrainedDict => true,
+        _ => false,
+    });
 
     let test_files = get_test_files_as_array(file_names);
     let mut sizes_header: Vec<String> = vec!["".to_string()];
@@ -251,16 +256,22 @@ fn benchmark_size_relative_avg(file_names: &[&str]) -> (Table, Table, Table) {
             longest_log_line = longest_log_line.max(log_line.len());
             print!("\r{:<1$}", log_line, longest_log_line + 1);
             stdout().flush().unwrap();
-            let encoded_values: Vec<Vec<u8>> = values
-                .iter()
-                .map(|value| encode(value, path, false, None).0)
-                .collect();
-            let dict = from_samples(&encoded_values, DICT_SIZE).unwrap();
+            let dict: Vec<u8>;
+            if uses_trained_dicts {
+                let encoded_values: Vec<Vec<u8>> = values
+                    .iter()
+                    .map(|value| encode(value, path, false, None).0)
+                    .collect();
+                dict = from_samples(&encoded_values, DICT_SIZE).unwrap();
+            } else {
+                dict = Vec::new();
+            }
             trained_dicts.insert((name.to_string(), path.clone()), dict);
         }
     }
 
-    let total_samples = samples_per_row * test_functions.len();
+    let repeat_count = 4;
+    let total_samples = samples_per_row * test_functions.len() * repeat_count;
     let mut i_sample = 0;
     for (i_func, (name, encode, decode, compression_config)) in test_functions.iter().enumerate() {
         let mut sizes_row: Vec<String> = Vec::new();
@@ -295,44 +306,44 @@ fn benchmark_size_relative_avg(file_names: &[&str]) -> (Table, Table, Table) {
             let mut encode_total_count: usize = 0;
             let mut encode_time_total: Duration = Duration::new(0, 0);
             let mut decode_time_total: Duration = Duration::new(0, 0);
-            for value in values.iter() {
-                if i_sample % 1_000 == 0 {
-                    let log_line = format!(
-                        "encoding with {} file {} - {:.2}%",
-                        name,
-                        file_name,
-                        i_sample as f64 / total_samples as f64 * 100.0
-                    );
-                    longest_log_line = longest_log_line.max(log_line.len());
-                    print!("\r{:<1$}", log_line, longest_log_line + 1);
-                    stdout().flush().unwrap();
+            for _ in 0..repeat_count {
+                for value in values.iter() {
+                    if i_sample % 10_000 == 0 {
+                        let log_line = format!(
+                            "encoding with {} file {} - {:.2}%",
+                            name,
+                            file_name,
+                            i_sample as f64 / total_samples as f64 * 100.0
+                        );
+                        longest_log_line = longest_log_line.max(log_line.len());
+                        print!("\r{:<1$}", log_line, longest_log_line + 1);
+                        stdout().flush().unwrap();
+                    }
+                    i_sample += 1;
+                    let ((encoded, encode_duration), (decoded, decode_duration)) =
+                        match *compression_config {
+                            CompressionConfig::NoCompression => {
+                                let encoded = encode(value, path, false, None);
+                                let decoded = decode(&encoded.0, path, false, None);
+                                (encoded, decoded)
+                            }
+                            CompressionConfig::ZstdCompression => {
+                                let encoded = encode(value, path, true, None);
+                                let decoded = decode(&encoded.0, path, true, None);
+                                (encoded, decoded)
+                            }
+                            CompressionConfig::ZstdCompressionWithTrainedDict => {
+                                let encoded = encode(value, path, true, Some(dict));
+                                let decoded = decode(&encoded.0, path, true, Some(dict));
+                                (encoded, decoded)
+                            }
+                        };
+                    json_eq(value, &decoded);
+                    encoded_size_total += encoded.len();
+                    encode_total_count += 1;
+                    encode_time_total += encode_duration;
+                    decode_time_total += decode_duration;
                 }
-                i_sample += 1;
-                let ((encoded, encode_duration), (decoded, decode_duration)) =
-                    match *compression_config {
-                        CompressionConfig::NoCompression => {
-                            let encoded = encode(value, path, false, None);
-                            let decoded = decode(&encoded.0, path, false, None);
-                            (encoded, decoded)
-                        }
-                        CompressionConfig::ZstdCompression => {
-                            let encoded = encode(value, path, true, None);
-                            let decoded = decode(&encoded.0, path, true, None);
-                            (encoded, decoded)
-                        }
-                        CompressionConfig::ZstdCompressionWithTrainedDict => {
-                            let encoded = encode(value, path, true, Some(dict));
-                            let decoded = decode(&encoded.0, path, true, Some(dict));
-                            (encoded, decoded)
-                        }
-                    };
-                //let (encoded, _) = encode(value, path, true, Some(&dict));
-                //let (decoded, _) = decode(&encoded, path, true, Some(&dict));
-                json_eq(value, &decoded);
-                encoded_size_total += encoded.len();
-                encode_total_count += 1;
-                encode_time_total += encode_duration;
-                decode_time_total += decode_duration;
             }
             let size_avg = encoded_size_total as f64 / encode_total_count as f64;
             let plain_text_size = plain_text_sizes[i_file];
@@ -401,11 +412,12 @@ fn optionally_compress(
     if use_compression {
         match trained_dict {
             Some(trained_dict) => {
-                let mut compressor = Compressor::with_dictionary(0, &trained_dict).unwrap();
+                let mut compressor =
+                    Compressor::with_dictionary(COMPRESSION_LEVEL, &trained_dict).unwrap();
                 compressor.compress(data).unwrap()
             }
             None => {
-                let compressed = compress(data, 3).unwrap();
+                let compressed = compress(data, COMPRESSION_LEVEL).unwrap();
                 compressed
             }
         }
@@ -564,7 +576,7 @@ fn decode_frac_json(
 ) -> (Value, Duration) {
     measure(|| {
         let bytes = optionally_decompress(bytes, uses_compression, trained_dict);
-        let value = frac_json::decode_frac_json(&bytes, None).unwrap();
+        let value = frac_json::decode_frac_json(bytes, None).unwrap();
         value
     })
 }
@@ -584,14 +596,18 @@ fn encode_frac_json_global_keys_table(
     compress: bool,
     trained_dict: Option<&Vec<u8>>,
 ) -> (Vec<u8>, Duration) {
-    let keys_table = frac_json::global_table_from_json(value).unwrap();
-    let mut keys_table_bytes = ByteStream::new();
-    keys_table.write_keys_table(&mut keys_table_bytes).unwrap();
-    let keys_table_bytes = keys_table_bytes.as_bytes();
     let cached_keys_tables = get_cached_keys_tables();
-    cached_keys_tables.insert(path.clone(), keys_table_bytes.to_vec());
+    if !cached_keys_tables.contains_key(path) {
+        let keys_table = frac_json::global_table_from_json(value).unwrap();
+        let mut keys_table_bytes = ByteStream::new();
+        keys_table.write_keys_table(&mut keys_table_bytes).unwrap();
+        let keys_table_bytes = keys_table_bytes.as_bytes();
+        cached_keys_tables.insert(path.clone(), keys_table_bytes.to_vec());
+    }
+    let keys_table_bytes = cached_keys_tables.get(path).unwrap();
     measure(|| {
-        let bytes = frac_json::encode_frac_json(value, Some(keys_table_bytes), None).unwrap();
+        let bytes =
+            frac_json::encode_frac_json(value, Some(keys_table_bytes.clone()), None).unwrap();
         optionally_compress(&bytes, compress, trained_dict)
     })
 }
@@ -606,7 +622,7 @@ fn decode_frac_json_global_keys_table(
     let global_keys_table = cached_keys_tables.get(path).unwrap();
     measure(|| {
         let bytes = optionally_decompress(bytes, uses_compression, trained_dict);
-        let value = frac_json::decode_frac_json(&bytes, Some(global_keys_table)).unwrap();
+        let value = frac_json::decode_frac_json(bytes, Some(global_keys_table.clone())).unwrap();
         value
     })
 }
