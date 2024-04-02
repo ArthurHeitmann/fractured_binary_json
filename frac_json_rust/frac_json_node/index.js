@@ -295,7 +295,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { encodeFracJson, decodeFracJson } = nativeBinding
+const { encode, decode, keysTableFromKeys, keysTableFromJson } = nativeBinding
 
-module.exports.encodeFracJson = encodeFracJson
-module.exports.decodeFracJson = decodeFracJson
+module.exports.encode = encode
+module.exports.decode = decode
+module.exports.keysTableFromKeys = keysTableFromKeys
+module.exports.keysTableFromJson = keysTableFromJson

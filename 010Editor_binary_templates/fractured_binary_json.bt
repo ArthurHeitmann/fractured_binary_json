@@ -8,160 +8,188 @@ struct Header {
 	uint8 config;
 };
 
-struct KeyMapping {
-	uint16 index;
-	uint8 keyLength;
-	char key[keyLength];
-};
-
-struct KeysTable {
-	uint16 count;
-	KeyMapping mappings[count]<optimize=false>;
-};
-
-typedef char DataType;
-
-int dataTypeHasJsonValue(DataType type) {
-	switch (type)
-	{
-		case 'o':
-		case 'a':
-		case 's':
-		case '0':
-		case 'f':
-		case 'b':
-		case 'B':
-		case 'z':
-			return true;
-		default:
-			return false;
-	}	
-}
-
 struct ObjectEntry;
-struct ObjectSmall {
-	uint8 count;
-	ObjectEntry entries[count]<optimize=false>;
+struct Value;
+struct Value {
+	local uint8 type = ReadUByte();
+	if (type == 0)
+		uint8 const_null;
+	else if (type == 1)
+		uint8 const_false;
+	else if (type == 2)
+		uint8 const_true;
+	else if (type == 3) {
+		uint8 type_int8;
+		int8 value;
+	}
+	else if (type == 4) {
+		uint8 type_uint8;
+		uint8 value;
+	}
+	else if (type == 5) {
+		uint8 type_int16;
+		int16 value;
+	}
+	else if (type == 6) {
+		uint8 type_uint16;
+		uint16 value;
+	}
+	else if (type == 7) {
+		uint8 type_int32;
+		int32 value;
+	}
+	else if (type == 8) {
+		uint8 type_uint32;
+		uint32 value;
+	}
+	else if (type == 9) {
+		uint8 type_int64;
+		int64 value;
+	}
+	else if (type == 0xA) {
+		uint8 type_uint64;
+		uint64 value;
+	}
+	else if (type == 0xB) {
+		uint8 type_float;
+		float value;
+	}
+	else if (type == 0xC) {
+		uint8 type_double;
+		double value;
+	}
+	else if (type == 0xD) {
+		uint8 type_string8;
+		uint8 length;
+		char value[length];
+	}
+	else if (type == 0xE) {
+		uint8 type_string16;
+		uint16 length;
+		char value[length];
+	}
+	else if (type == 0xF) {
+		uint8 type_string32;
+		uint32 length;
+		char value[length];
+	}
+	else if (type == 0x10) {
+		uint8 type_object8;
+		uint8 count;
+		ObjectEntry entries[count]<optimize=false>;
+	}
+	else if (type == 0x11) {
+		uint8 type_object16;
+		uint16 count;
+		ObjectEntry entries[count]<optimize=false>;
+	}
+	else if (type == 0x12) {
+		uint8 type_object32;
+		uint32 count;
+		ObjectEntry entries[count]<optimize=false>;
+	}
+	else if (type == 0x13) {
+		uint8 type_array8;
+		uint8 count;
+		Value values[count]<optimize=false>;
+	}
+	else if (type == 0x14) {
+		uint8 type_array16;
+		uint16 count;
+		Value values[count]<optimize=false>;
+	}
+	else if (type == 0x15) {
+		uint8 type_array32;
+		uint32 count;
+		Value values[count]<optimize=false>;
+	}
+	else if (type >= 0x16 && type <= 0x6D) {
+		uint8 type_tiny_string;
+		local uint8 length = type - 0x16;
+		char value[length];
+	}
+	else if (type >= 0x6E && type <= 0x9D) {
+		uint8 type_tiny_object;
+		local uint8 count = type - 0x6E;
+		ObjectEntry entries[count]<optimize=false>;
+	}
+	else if (type >= 0x9E && type <= 0xBD) {
+		uint8 type_tiny_array;
+		local uint8 count = type - 0x9E;
+		Value values[count]<optimize=false>;
+	}
+	else if (type >= 0xBE && type <= 0xFD) {
+		uint8 type_tiny_int;
+	}
+	else if (type == 0xFE) {
+		uint8 type_reserved;
+	}
+	else if (type == 0xFF) {
+		uint8 type_reserved;
+	}
 };
-struct ObjectBig {
-	uint16 count;
-	ObjectEntry entries[count]<optimize=false>;
+
+struct v_uint16 {
+	uint8 b0;
+	if (b0 & 0x80) {
+		uint8 b1;
+		if (b1 & 0x80) {
+			uint8 b2;
+		}
+	}
 };
-struct ObjectLong {
-	uint32 count;
-	ObjectEntry entries[count]<optimize=false>;
-};
-struct Element;
+uint16 read_v_uint16(v_uint16 &num) {
+	if (!exists(num.b1)) {
+		return num.b0;
+	}
+	else if (!exists(num.b2)) {
+		return num.b0 & 0x7F | (num.b1 & 0x7F) << 7;
+	}
+	else {
+		return num.b0 & 0x7F | (num.b1 & 0x7F) << 7 | (num.b2 & 0x03) << 14;
+	}
+}
 struct ObjectEntry {
-	uint16 keyIndex;
-	Element element;
+	struct {
+		local local uint8 type = ReadUByte();
+		if (type == 0) {
+			uint8 type_immediate_v_uint16;
+			v_uint16 length;
+			char key[read_v_uint16(length)];
+		}
+		else if (type == 1) {
+			uint8 type_back_reference_v_uint16;
+			v_uint16 back_reference_index;
+		}
+		else if (type == 2) {
+			uint8 type_global_index_v_uint16;
+			v_uint16 global_index;
+		}
+		else if (type >= 0x03 && type <= 0x56) {
+			uint8 tiny_length;
+			local uint8 length = type - 0x03;
+			char key[length];
+		}
+		else if (type >= 0x57 && type <= 0xAA) {
+			uint8 tiny_back_reference_index;
+			local uint8 back_reference_index = type - 0x57;
+		}
+		else if (type >= 0xAB && type <= 0xFE) {
+			uint8 tiny_global_index;
+			local uint8 global_index = type - 0xAB;
+		}
+		else if (type == 0xFF) {
+			uint8 type_reserved;
+		}
+	} key;
+	Value value;
 };
-struct ArraySmall {
-	uint8 count;
-	Element elements[count]<optimize=false>;
-};
-struct ArrayBig {
-	uint16 count;
-	Element elements[count]<optimize=false>;
-};
-struct ArrayLong {
-	uint32 count;
-	Element elements[count]<optimize=false>;
-};
-struct StringSmall {
-	uint8 length;
-	char chars[length];
-};
-struct StringBig {
-	uint16 length;
-	char chars[length];
-};
-struct StringLong {
-	uint32 length;
-	char chars[length];
-};
-
-struct Value (const DataType& type) {
-	switch (type)
-	{
-		case 'O':
-			ObjectSmall object;
-			break;
-		case 'p':
-			ObjectBig object;
-			break;
-		case 'P':
-			ObjectLong object;
-			break;
-		case 'A':
-			ArraySmall array;
-			break;
-		case 'c':
-			ArrayBig array;
-			break;
-		case 'C':
-			ArrayLong array;
-			break;
-		case 'S':
-			StringSmall str;
-			break;
-		case 't':
-			StringBig str;
-			break;
-		case 'T':
-			StringLong str;
-			break;
-		case 'i':
-			int8 value;
-			break;
-		case 'I':
-			uint8 value;
-			break;
-		case 'j':
-			int16 value;
-			break;
-		case 'J':
-			uint16 value;
-			break;
-		case 'k':
-			int32 value;
-			break;
-		case 'K':
-			uint32 value;
-			break;
-		case 'l':
-			int64 value;
-			break;
-		case 'L':
-			uint64 value;
-			break;
-		case 'F':
-			float value;
-			break;
-		case 'd':
-			double value;
-			break;
-		default:
-			Assert(false, "Invalid data type");
-	}
-};
-
-
-struct Element {
-	DataType type;
-	if (!dataTypeHasJsonValue(type)) {
-		Value value(type);
-	}
-};
-
 
 Header header;
-if (header.config & 0x10)
-	KeysTable keys;
-if (header.config & 0x20) {
+if (header.config & 0x10) {
 	local int remaining = FileSize() - FTell();
 	uint8 zstdCompressedBytes[remaining];
 }
 else {
-	Element root;
+	Value root;
 }

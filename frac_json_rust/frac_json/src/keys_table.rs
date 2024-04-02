@@ -1,4 +1,4 @@
-use crate::byte_stream::ByteStream;
+use crate::byte_stream::{ByteReader, ByteWriter};
 
 pub const MAX_TABLE_SIZE: usize = 0xFFFF;
 pub const MAX_KEY_LENGTH: usize = 0xFFFF;
@@ -12,7 +12,7 @@ impl GlobalKeysTable {
         GlobalKeysTable { table }
     }
 
-    pub fn read_keys_table(bytes: &mut ByteStream) -> Result<GlobalKeysTable, String> {
+    pub fn read_keys_table(bytes: &mut ByteReader) -> Result<GlobalKeysTable, String> {
         let config = bytes.read_u8()?;
         if config != 0 {
             return Err(format!("Unsupported keys table config {}", config));
@@ -26,30 +26,30 @@ impl GlobalKeysTable {
         return Ok(GlobalKeysTable::new(mappings));
     }
 
-    fn read_key_mapping(bytes: &mut ByteStream) -> Result<String, String> {
+    fn read_key_mapping(bytes: &mut ByteReader) -> Result<String, String> {
         let key_length = bytes.read_u16()?;
         return Ok(bytes.read_string(key_length.into())?);
     }
 
-    pub fn write_keys_table(&self, bytes: &mut ByteStream) -> Result<(), String> {
+    pub fn write_keys_table<W: ByteWriter>(&self, bytes: &mut W) -> Result<(), String> {
         let count = self.table.len();
         if count > MAX_TABLE_SIZE {
             return Err(format!("Keys table too large! {count} keys"));
         }
-        bytes.write_u8(0)?;
-        bytes.write_u16(count as u16)?;
+        bytes.write_u8(0);
+        bytes.write_u16(count as u16);
         for key in self.table.iter() {
             self.write_key_mapping(key, bytes)?;
         }
         return Ok(());
     }
 
-    fn write_key_mapping(&self, key: &String, bytes: &mut ByteStream) -> Result<(), String> {
+    fn write_key_mapping<W: ByteWriter>(&self, key: &String, bytes: &mut W) -> Result<(), String> {
         if key.len() > MAX_KEY_LENGTH {
             return Err(format!("Key '{}' too long! {}", key, key.len()));
         }
-        bytes.write_u16(key.len() as u16)?;
-        bytes.write_string(key)?;
+        bytes.write_u16(key.len() as u16);
+        bytes.write_string(key);
         return Ok(());
     }
 
@@ -67,8 +67,7 @@ impl GlobalKeysTable {
         if self.table.is_empty() {
             return None;
         }
-        // return self.table.iter().position(|x| x == key);
-        return self.table.binary_search(key).ok();
+        return self.table.iter().position(|x| x == key);
     }
 }
 

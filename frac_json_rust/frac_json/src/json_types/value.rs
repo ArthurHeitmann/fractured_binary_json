@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use crate::{
-    byte_stream::ByteStream,
+    byte_stream::{ByteReader, ByteWriter},
     keys_table::{DecodeKeysTables, EncodeKeysTables},
 };
 
@@ -12,7 +12,7 @@ use super::{
     string::{read_string, write_string},
 };
 
-const READ_VALUE_FROM_TYPE: [fn(&mut ByteStream, &mut DecodeKeysTables) -> Result<Value, String>;
+const READ_VALUE_FROM_TYPE: [fn(&mut ByteReader, &mut DecodeKeysTables) -> Result<Value, String>;
     22] = [
     |_, _| Ok(Value::Null),
     |_, _| Ok(Value::Bool(false)),
@@ -66,7 +66,7 @@ const READ_VALUE_FROM_TYPE: [fn(&mut ByteStream, &mut DecodeKeysTables) -> Resul
 ];
 
 pub fn read_value(
-    bytes: &mut ByteStream,
+    bytes: &mut ByteReader,
     keys_table: &mut DecodeKeysTables,
 ) -> Result<Value, String> {
     let data_type_char = bytes.read_u8()?;
@@ -91,62 +91,74 @@ pub fn read_value(
     }
 }
 
-pub fn write_value<'a, 'b: 'a>(
+pub fn write_value<'a, 'b: 'a, W: ByteWriter>(
     value: &'b Value,
-    bytes: &mut ByteStream,
+    bytes: &mut W,
     keys_table: &mut EncodeKeysTables<'a>,
 ) -> Result<(), String> {
     match value {
-        Value::Null => bytes.write_u8(DataTypes::NULL),
+        Value::Null => Ok(bytes.write_u8(DataTypes::NULL)),
         Value::Bool(b) => match b {
-            false => bytes.write_u8(DataTypes::FALSE),
-            true => bytes.write_u8(DataTypes::TRUE),
+            false => Ok(bytes.write_u8(DataTypes::FALSE)),
+            true => Ok(bytes.write_u8(DataTypes::TRUE)),
         },
         Value::Number(number) => {
             if let Some(n) = number.as_i64() {
                 if n >= DataTypes::TINY_INT_MIN as i64 && n < DataTypes::TINY_INT_MAX as i64 {
                     let tiny_int =
                         (n - DataTypes::TINY_INT_BIAS as i64) as u8 + DataTypes::TINY_INT;
-                    bytes.write_u8(tiny_int as u8)
+                    bytes.write_u8(tiny_int as u8);
+                    Ok(())
                 } else if n >= 0 {
                     if n <= 0xFF {
-                        bytes.write_u8(DataTypes::UINT8)?;
-                        bytes.write_u8(n as u8)
+                        bytes.write_u8(DataTypes::UINT8);
+                        bytes.write_u8(n as u8);
+                        Ok(())
                     } else if n <= 0xFFFF {
-                        bytes.write_u8(DataTypes::UINT16)?;
-                        bytes.write_u16(n as u16)
+                        bytes.write_u8(DataTypes::UINT16);
+                        bytes.write_u16(n as u16);
+                        Ok(())
                     } else if n <= 0xFFFFFFFF {
-                        bytes.write_u8(DataTypes::UINT32)?;
-                        bytes.write_u32(n as u32)
+                        bytes.write_u8(DataTypes::UINT32);
+                        bytes.write_u32(n as u32);
+                        Ok(())
                     } else {
-                        bytes.write_u8(DataTypes::UINT64)?;
-                        bytes.write_u64(n as u64)
+                        bytes.write_u8(DataTypes::UINT64);
+                        bytes.write_u64(n as u64);
+                        Ok(())
                     }
                 } else {
                     if n >= -0x80 {
-                        bytes.write_u8(DataTypes::INT8)?;
-                        bytes.write_i8(n as i8)
+                        bytes.write_u8(DataTypes::INT8);
+                        bytes.write_i8(n as i8);
+                        Ok(())
                     } else if n >= -0x8000 {
-                        bytes.write_u8(DataTypes::INT16)?;
-                        bytes.write_i16(n as i16)
+                        bytes.write_u8(DataTypes::INT16);
+                        bytes.write_i16(n as i16);
+                        Ok(())
                     } else if n >= -0x80000000 {
-                        bytes.write_u8(DataTypes::INT32)?;
-                        bytes.write_i32(n as i32)
+                        bytes.write_u8(DataTypes::INT32);
+                        bytes.write_i32(n as i32);
+                        Ok(())
                     } else {
-                        bytes.write_u8(DataTypes::INT64)?;
-                        bytes.write_i64(n)
+                        bytes.write_u8(DataTypes::INT64);
+                        bytes.write_i64(n);
+                        Ok(())
                     }
                 }
             } else if let Some(n) = number.as_u64() {
-                bytes.write_u8(DataTypes::UINT64)?;
-                bytes.write_u64(n)
+                bytes.write_u8(DataTypes::UINT64);
+                bytes.write_u64(n);
+                Ok(())
             } else if let Some(n) = number.as_f64() {
                 if can_be_represented_as_f32(n) {
-                    bytes.write_u8(DataTypes::FLOAT)?;
-                    bytes.write_f32(n as f32)
+                    bytes.write_u8(DataTypes::FLOAT);
+                    bytes.write_f32(n as f32);
+                    Ok(())
                 } else {
-                    bytes.write_u8(DataTypes::DOUBLE)?;
-                    bytes.write_f64(n)
+                    bytes.write_u8(DataTypes::DOUBLE);
+                    bytes.write_f64(n);
+                    Ok(())
                 }
             } else {
                 Err("Number is not an integer or float".to_string())
@@ -160,7 +172,8 @@ pub fn write_value<'a, 'b: 'a>(
                 DataTypes::TINY_OBJECT - DataTypes::TINY_STRING,
                 bytes,
             )?;
-            write_string(string, bytes)
+            write_string(string, bytes);
+            Ok(())
         }
         Value::Object(object) => {
             write_var_length_data_type(
@@ -207,15 +220,15 @@ fn can_be_represented_as_f32(f: f64) -> bool {
     return error_relative < MAX_ERROR_RELATIVE;
 }
 
-fn write_var_length_data_type(
+fn write_var_length_data_type<W: ByteWriter>(
     length: usize,
     normal_offset: u8,
     tiny_offset: u8,
     tiny_max: u8,
-    bytes: &mut ByteStream,
+    bytes: &mut W,
 ) -> Result<(), String> {
     if length < tiny_max as usize {
-        bytes.write_u8(length as u8 + tiny_offset)
+        bytes.write_u8(length as u8 + tiny_offset);
     } else {
         let additional_offset = if length <= 0xFF {
             0
@@ -226,12 +239,13 @@ fn write_var_length_data_type(
         } else {
             return Err(format!("Value length {} is too long", length));
         };
-        bytes.write_u8(normal_offset + additional_offset)?;
+        bytes.write_u8(normal_offset + additional_offset);
         match additional_offset {
             0 => bytes.write_u8(length as u8),
             1 => bytes.write_u16(length as u16),
             2 => bytes.write_u32(length as u32),
-            _ => Err("This should never happen".to_string()),
+            _ => panic!("This should never happen"),
         }
     }
+    Ok(())
 }

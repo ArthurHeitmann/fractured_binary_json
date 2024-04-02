@@ -1,4 +1,6 @@
-use super::byte_stream::ByteStream;
+use crate::byte_stream::ByteWriter;
+
+use super::byte_stream::ByteReader;
 
 const CURRENT_VERSION: u8 = 0;
 
@@ -18,7 +20,7 @@ impl Config {
         }
     }
 
-    pub fn read_header(bytes: &mut ByteStream) -> Result<Config, String> {
+    pub fn read_header(bytes: &mut ByteReader) -> Result<Config, String> {
         let magic = bytes.read2()?;
         if magic != *FJ_MAGIC {
             return Err(format!("Invalid magic {:?}", magic));
@@ -35,8 +37,8 @@ impl Config {
         return Ok(config);
     }
 
-    pub fn write_header(&self, bytes: &mut ByteStream) -> Result<(), String> {
-        bytes.write2(FJ_MAGIC)?;
+    pub fn write_header<W: ByteWriter>(&self, bytes: &mut W) {
+        bytes.write(FJ_MAGIC);
         let mut config = self.version;
         if self.is_zstd_compressed {
             config |= 0b00010000;
@@ -44,7 +46,6 @@ impl Config {
         if self.uses_external_dict {
             config |= 0b00100000;
         }
-        bytes.write_u8(config)?;
-        return Ok(());
+        bytes.write_u8(config);
     }
 }

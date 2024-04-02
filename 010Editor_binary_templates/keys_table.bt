@@ -4,6 +4,7 @@ typedef byte int8;
 typedef ubyte uint8;
 
 struct KeyMapping {
+	uint8 config;
 	uint16 index;
 	uint8 keyLength;
 	char key[keyLength];

@@ -12,33 +12,59 @@ use ::frac_json as fj;
 create_exception!(frac_json, FracJsonError, pyo3::exceptions::PyException);
 
 #[pyfunction]
-pub fn encode_frac_json(
+pub fn encode(
     py: Python,
     object: PyObject,
     global_keys_table_bytes: Option<Vec<u8>>,
     compression_level: Option<i32>,
 ) -> PyResult<Cow<[u8]>> {
     let value = py_to_json(py, &object).map_err(|err| FracJsonError::new_err(err))?;
-    fj::encode_frac_json(&value, global_keys_table_bytes, compression_level)
+    fj::encode(&value, global_keys_table_bytes, compression_level)
         .map(|vec| Cow::from(vec))
         .map_err(|err| FracJsonError::new_err(err))
 }
 
 #[pyfunction]
-pub fn decode_frac_json(
+pub fn decode(
     py: Python,
     frac_json_bytes: Vec<u8>,
     global_keys_table_bytes: Option<Vec<u8>>,
 ) -> PyResult<PyObject> {
-    let value = fj::decode_frac_json(frac_json_bytes, global_keys_table_bytes)
+    let value = fj::decode(frac_json_bytes, global_keys_table_bytes)
         .map_err(|err| FracJsonError::new_err(err))?;
     Ok(to_py_object(py, &value).map_err(|err| FracJsonError::new_err(err))?)
 }
 
+#[pyfunction]
+pub fn keys_table_from_keys(_py: Python, keys: Vec<String>) -> PyResult<Cow<[u8]>> {
+    fj::global_table_from_keys(keys)
+        .map(|vec| Cow::from(vec))
+        .map_err(|err| FracJsonError::new_err(err))
+}
+
+#[pyfunction]
+pub fn keys_table_from_json(
+    py: Python,
+    object: PyObject,
+    max_count: Option<i64>,
+    occurrence_cutoff: Option<i64>,
+) -> PyResult<Cow<[u8]>> {
+    let value = py_to_json(py, &object).map_err(|err| FracJsonError::new_err(err))?;
+    fj::global_table_from_json_limited(
+        &value,
+        max_count.map(|v| v as usize),
+        occurrence_cutoff.map(|v| v as usize),
+    )
+    .map(|vec| Cow::from(vec))
+    .map_err(|err| FracJsonError::new_err(err))
+}
+
 #[pymodule]
 fn frac_json(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(encode_frac_json, m)?)?;
-    m.add_function(wrap_pyfunction!(decode_frac_json, m)?)?;
+    m.add_function(wrap_pyfunction!(encode, m)?)?;
+    m.add_function(wrap_pyfunction!(decode, m)?)?;
+    m.add_function(wrap_pyfunction!(keys_table_from_keys, m)?)?;
+    m.add_function(wrap_pyfunction!(keys_table_from_json, m)?)?;
     Ok(())
 }
 

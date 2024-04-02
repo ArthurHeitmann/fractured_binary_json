@@ -4,12 +4,14 @@ use serde_json::Value;
 
 use crate::keys_table::{GlobalKeysTable, MAX_KEY_LENGTH, MAX_TABLE_SIZE};
 
-pub fn global_table_from_keys(mut keys: Vec<String>) -> GlobalKeysTable {
-    keys.sort();
-    GlobalKeysTable::new(keys)
+pub fn global_table_from_keys(keys: Vec<String>) -> Result<Vec<u8>, String> {
+    let table = GlobalKeysTable::new(keys);
+    let mut bytes: Vec<u8> = Vec::new();
+    table.write_keys_table(&mut bytes)?;
+    return Ok(bytes);
 }
 
-pub fn global_table_from_json(json: &Value) -> Result<GlobalKeysTable, String> {
+pub fn global_table_from_json(json: &Value) -> Result<Vec<u8>, String> {
     global_table_from_json_limited(json, None, None)
 }
 
@@ -17,7 +19,7 @@ pub fn global_table_from_json_limited(
     json: &Value,
     max_count: Option<usize>,
     occurrence_cutoff: Option<usize>,
-) -> Result<GlobalKeysTable, String> {
+) -> Result<Vec<u8>, String> {
     let max_count = max_count.unwrap_or(MAX_TABLE_SIZE);
     let occurrence_cutoff = occurrence_cutoff.unwrap_or(1);
     if max_count > MAX_TABLE_SIZE {
@@ -62,5 +64,5 @@ pub fn global_table_from_json_limited(
     let key_usages = key_usages.filter(|(_k, v)| *v >= occurrence_cutoff);
 
     let keys: Vec<String> = key_usages.map(|(k, _v)| (*k).clone()).collect();
-    return Ok(global_table_from_keys(keys));
+    return global_table_from_keys(keys);
 }

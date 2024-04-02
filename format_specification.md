@@ -2,14 +2,11 @@
 
 ## Goals
 
-Highly storage efficient across a very large number of objects.
+Highly storage efficient across a large number of objects.
 
-## Core ideas
+## Core idea
 
-In order to optimize storage efficiency, 3 main ideas are used:
-- global keys table: The biggest difference between JSON and SQL databases, is that every object value, needs to have a key name. Depending on how long the name is and how much data by the value is used, the key names might make up more than half of the size. By replacing all keys across a large number of documents with a unique ID, a lot of repeated text can be saved. All keys used are then stored in a central table.
-- binary encoding: JSON encodes everything in text form, including numbers. By storing them in binary form with varying levels of precision, a good amount of space can be saved.
-- dedicated data type for empty "objects": JSON has a small number of data types which can all be stored in a single byte. By marking empty objects (`{}`, `[]`), 0 numbers, bool and null values within the data type bytes, additional bytes for the value itself can be skipped.
+Reusing keys: The biggest difference between JSON and a SQL databases, is that every object value needs to have a key name. Depending on how long the name is and how much data by the value is used, the key names might make up more than half of the size. Keys that are used frequently, can be referenced using just an index. If the possible key values are known ahead of time, they can be stored separately. For remaining keys, each key is unique and only used once within a file. Repeated uses of keys, use an index referencing back to when a key was first encountered.
 
 ## File structure
 
@@ -17,6 +14,10 @@ In order to optimize storage efficiency, 3 main ideas are used:
 
 - Header
 - Root value
+
+All text is UTF-8 encoded.
+
+Little endian is used.
 
 ### Header
 
@@ -31,7 +32,6 @@ struct Header {
 - `config`
   - `0000XXXX` version. Each new version indicates a breaking change.
   - `00010000` indicates that all bytes after the header are compressed with zstandard. This is mainly for convenience. If you really care about storage efficiency, you won't get around compression anyways, so might as well include it here.
-  - `00100000` indicates that a separate dictionary is needed for decompression.
 
 ### Value
 
@@ -65,28 +65,24 @@ The data type of a value and potentially the value itself is encoded in a single
 
 The `reserved` type is reserved for potential future uses. When encountered, an error should be thrown.
 
-All text is UTF-8 encoded.
-
-Little endian is used.
-
 | type        | start | end | count  | notes           |
 |-------------|-------|-----|--------|-----------------|
-| null        | 0     | 0   | 1      |                 |
-| false       | 1     | 1   | 1      |                 |
-| true        | 2     | 2   | 1      |                 |
-| int8        | 3     | 3   | 1      |                 |
-| uint8       | 4     | 4   | 1      |                 |
-| int16       | 5     | 5   | 1      |                 |
-| uint16      | 6     | 6   | 1      |                 |
-| int32       | 7     | 7   | 1      |                 |
-| uint32      | 8     | 8   | 1      |                 |
-| int64       | 9     | 9   | 1      |                 |
-| uint64      | A     | A   | 1      |                 |
-| float       | B     | B   | 1      |                 |
-| double      | C     | C   | 1      |                 |
-| string 8    | D     | D   | 1      |                 |
-| string 16   | E     | E   | 1      |                 |
-| string 32   | F     | F   | 1      |                 |
+| null        | 00    | 00  | 1      |                 |
+| false       | 01    | 01  | 1      |                 |
+| true        | 02    | 02  | 1      |                 |
+| int8        | 03    | 03  | 1      |                 |
+| uint8       | 04    | 04  | 1      |                 |
+| int16       | 05    | 05  | 1      |                 |
+| uint16      | 06    | 06  | 1      |                 |
+| int32       | 07    | 07  | 1      |                 |
+| uint32      | 08    | 08  | 1      |                 |
+| int64       | 09    | 09  | 1      |                 |
+| uint64      | 0A    | 0A  | 1      |                 |
+| float       | 0B    | 0B  | 1      |                 |
+| double      | 0C    | 0C  | 1      |                 |
+| string 8    | 0D    | 0D  | 1      |                 |
+| string 16   | 0E    | 0E  | 1      |                 |
+| string 32   | 0F    | 0F  | 1      |                 |
 | object 8    | 10    | 10  | 1      |                 |
 | object 16   | 11    | 11  | 1      |                 |
 | object 32   | 12    | 12  | 1      |                 |
@@ -128,10 +124,10 @@ struct ObjectEntry {
 
 | type                    | start | end  | count |
 |-------------------------|-------|------|-------|
-| immediate v_uint16      | 0     | 0    | 1     |
-| back reference v_uint16 | 1     | 1    | 1     |
-| global index v_uint16   | 2     | 2    | 1     |
-| immediate tiny_u8       | 3     | 56   | 84    |
+| immediate v_uint16      | 00    | 00   | 1     |
+| back reference v_uint16 | 01    | 01   | 1     |
+| global index v_uint16   | 02    | 02   | 1     |
+| immediate tiny_u8       | 03    | 56   | 84    |
 | back reference tiny_u8  | 57    | AA   | 84    |
 | global index tiny_u8    | AB    | FE   | 84    |
 | reserved                | FF    | FF   | 1     |
@@ -179,7 +175,6 @@ The decision whether a floating point number is 32 bit or 64 bit encoded, is an 
 ## Global Keys table
 
 The global keys table is a list of object key names, that are shared across different files. It is stored separately and not part of the main fractured json file. Keys are referenced by index.
-All keys are sorted in ascending order of their byte representation.
 
 ```C
 struct GlobalKeysTable {

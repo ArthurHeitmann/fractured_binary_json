@@ -1,14 +1,14 @@
 use serde_json::Value;
 
 use crate::{
-    byte_stream::ByteStream,
+    byte_stream::{ByteReader, ByteWriter},
     keys_table::{DecodeKeysTables, EncodeKeysTables},
 };
 
 use super::value::{read_value, write_value};
 
 pub fn read_array(
-    bytes: &mut ByteStream,
+    bytes: &mut ByteReader,
     length: usize,
     keys_table: &mut DecodeKeysTables,
 ) -> Result<Value, String> {
@@ -22,9 +22,9 @@ pub fn read_array(
     return Ok(Value::Array(array));
 }
 
-pub fn write_array<'a, 'b: 'a>(
+pub fn write_array<'a, 'b: 'a, W: ByteWriter>(
     array: &'b Vec<Value>,
-    bytes: &mut ByteStream,
+    bytes: &mut W,
     keys_table: &mut EncodeKeysTables<'a>,
 ) -> Result<(), String> {
     for value in array {

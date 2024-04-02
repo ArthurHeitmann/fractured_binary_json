@@ -1,4 +1,3 @@
-use frac_json::ByteStream;
 use serde_json::Value;
 use std::{
     collections::HashMap,
@@ -51,8 +50,7 @@ enum CompressionConfig {
 fn main() {
     let table_small_files = benchmark_size_relative(&TEST_FILE_NAMES_SMALL);
     let table_big_files = benchmark_size_relative(&TEST_FILE_NAMES_BIG);
-    let (table_files_avg, table_encode_times, table_decode_times) =
-        benchmark_size_relative_avg(&TEST_FILE_NAMES_FOR_AVG);
+    let (table_files_avg, table_encode_times, table_decode_times) = benchmark_size_relative_avg(&TEST_FILE_NAMES_FOR_AVG);
     println!(
         "\nRELATIVE SIZE RESULTS (SMALL):\n{}",
         table_small_files.to_markdown()
@@ -66,11 +64,11 @@ fn main() {
         table_files_avg.to_markdown()
     );
     println!(
-        "\nENCODE TIME RESULTS (AVERAGE):\n{}",
+        "ENCODE TIME RESULTS (AVERAGE):\n{}",
         table_encode_times.to_markdown()
     );
     println!(
-        "\nDECODE TIME RESULTS (AVERAGE):\n{}",
+        "DECODE TIME RESULTS (AVERAGE):\n{}",
         table_decode_times.to_markdown()
     );
 }
@@ -364,16 +362,13 @@ fn benchmark_size_relative_avg(file_names: &[&str]) -> (Table, Table, Table) {
             if i_func == 0 {
                 plain_text_encode_times.push(encode_time_avg);
                 plain_text_decode_times.push(decode_time_avg);
-                encode_time_row.push(format!("100.0% ({:.1?})", encode_time_avg));
-                decode_time_row.push(format!("100.0% ({:.1?})", decode_time_avg));
-            } else {
-                let encode_time_ratio = encode_time_avg.as_nanos() as f64
-                    / plain_text_encode_times[i_file].as_nanos() as f64;
-                let decode_time_ratio = decode_time_avg.as_nanos() as f64
-                    / plain_text_decode_times[i_file].as_nanos() as f64;
-                encode_time_row.push(format!("{:.2}x", encode_time_ratio));
-                decode_time_row.push(format!("{:.2}x", decode_time_ratio));
             }
+            let encode_time_ratio = encode_time_avg.as_nanos() as f64
+                / plain_text_encode_times[i_file].as_nanos() as f64;
+            let decode_time_ratio = decode_time_avg.as_nanos() as f64
+                / plain_text_decode_times[i_file].as_nanos() as f64;
+            encode_time_row.push(format!("{:.2}x ({:.1?})", encode_time_ratio, encode_time_avg));
+            decode_time_row.push(format!("{:.2}x ({:.1?})", decode_time_ratio, decode_time_avg));
         }
         sizes_rows.push(sizes_row);
         encode_time_rows.push(encode_time_row);
@@ -563,7 +558,7 @@ fn encode_frac_json(
     trained_dict: Option<&Vec<u8>>,
 ) -> (Vec<u8>, Duration) {
     measure(|| {
-        let bytes = frac_json::encode_frac_json(value, None, None).unwrap();
+        let bytes = frac_json::encode(value, None, None).unwrap();
         optionally_compress(&bytes, compress, trained_dict)
     })
 }
@@ -576,7 +571,7 @@ fn decode_frac_json(
 ) -> (Value, Duration) {
     measure(|| {
         let bytes = optionally_decompress(bytes, uses_compression, trained_dict);
-        let value = frac_json::decode_frac_json(bytes, None).unwrap();
+        let value = frac_json::decode(bytes, None).unwrap();
         value
     })
 }
@@ -599,15 +594,12 @@ fn encode_frac_json_global_keys_table(
     let cached_keys_tables = get_cached_keys_tables();
     if !cached_keys_tables.contains_key(path) {
         let keys_table = frac_json::global_table_from_json(value).unwrap();
-        let mut keys_table_bytes = ByteStream::new();
-        keys_table.write_keys_table(&mut keys_table_bytes).unwrap();
-        let keys_table_bytes = keys_table_bytes.as_bytes();
-        cached_keys_tables.insert(path.clone(), keys_table_bytes.to_vec());
+        cached_keys_tables.insert(path.clone(), keys_table);
     }
     let keys_table_bytes = cached_keys_tables.get(path).unwrap();
     measure(|| {
         let bytes =
-            frac_json::encode_frac_json(value, Some(keys_table_bytes.clone()), None).unwrap();
+            frac_json::encode(value, Some(keys_table_bytes.clone()), None).unwrap();
         optionally_compress(&bytes, compress, trained_dict)
     })
 }
@@ -622,7 +614,7 @@ fn decode_frac_json_global_keys_table(
     let global_keys_table = cached_keys_tables.get(path).unwrap();
     measure(|| {
         let bytes = optionally_decompress(bytes, uses_compression, trained_dict);
-        let value = frac_json::decode_frac_json(bytes, Some(global_keys_table.clone())).unwrap();
+        let value = frac_json::decode(bytes, Some(global_keys_table.clone())).unwrap();
         value
     })
 }

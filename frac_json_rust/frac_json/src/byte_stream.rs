@@ -1,38 +1,15 @@
 // LE
-pub struct ByteStream {
+pub struct ByteReader {
     bytes: Vec<u8>,
     pos: usize,
 }
 
-impl ByteStream {
-    pub fn new() -> ByteStream {
-        ByteStream {
-            bytes: Vec::new(),
-            pos: 0,
-        }
-    }
-
-    pub fn make(items: Vec<u8>) -> ByteStream {
-        ByteStream {
+impl ByteReader {
+    pub fn make(items: Vec<u8>) -> ByteReader {
+        ByteReader {
             bytes: items,
             pos: 0,
         }
-    }
-
-    pub fn seek(&mut self, pos: usize) -> Result<(), String> {
-        if pos > self.bytes.len() {
-            return Err(format!(
-                "Cannot seek to position {}! Only {} items in ByteStream",
-                pos,
-                self.bytes.len()
-            ));
-        }
-        self.pos = pos;
-        return Ok(());
-    }
-
-    pub fn len(&self) -> usize {
-        self.bytes.len()
     }
 
     fn check_read_will_error(&self, count: usize) -> Result<(), String> {
@@ -147,101 +124,79 @@ impl ByteStream {
         let string = unsafe { String::from_utf8_unchecked(slice.to_vec()) };
         return Ok(string);
     }
+}
 
-    pub fn as_bytes(&self) -> &Vec<u8> {
-        &self.bytes
+pub trait ByteWriter {
+    fn write(&mut self, bytes: &[u8]);
+    fn write_u8(&mut self, value: u8);
+    fn write_i8(&mut self, value: i8);
+    fn write_u16(&mut self, value: u16);
+    fn write_i16(&mut self, value: i16);
+    fn write_u32(&mut self, value: u32);
+    fn write_i32(&mut self, value: i32);
+    fn write_u64(&mut self, value: u64);
+    fn write_i64(&mut self, value: i64);
+    fn write_f32(&mut self, value: f32);
+    fn write_f64(&mut self, value: f64);
+    fn write_string(&mut self, value: &str);
+}
+
+impl ByteWriter for Vec<u8> {
+    fn write(&mut self, bytes: &[u8]) {
+        self.extend(bytes);
     }
 
-    fn check_is_at_end(&self) -> Result<(), String> {
-        if self.bytes.len() != self.pos {
-            return Err(format!(
-                "Byte stream is not at end! pos: {}, end: {}",
-                self.pos,
-                self.bytes.len()
-            ));
-        }
-        return Ok(());
-    }
-
-    pub fn write(&mut self, bytes: &[u8]) -> Result<(), String> {
-        self.check_is_at_end()?;
-        self.bytes.extend(bytes);
-        self.pos += bytes.len();
-        return Ok(());
-    }
-
-    pub fn write2(&mut self, value: &[u8; 2]) -> Result<(), String> {
-        self.write(value)?;
-        return Ok(());
-    }
-
-    pub fn write4(&mut self, value: &[u8; 4]) -> Result<(), String> {
-        self.write(value)?;
-        return Ok(());
-    }
-
-    pub fn write_u8(&mut self, value: u8) -> Result<(), String> {
+    fn write_u8(&mut self, value: u8) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_i8(&mut self, value: i8) -> Result<(), String> {
+    fn write_i8(&mut self, value: i8) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_u16(&mut self, value: u16) -> Result<(), String> {
+    fn write_u16(&mut self, value: u16) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_i16(&mut self, value: i16) -> Result<(), String> {
+    fn write_i16(&mut self, value: i16) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_u32(&mut self, value: u32) -> Result<(), String> {
+    fn write_u32(&mut self, value: u32) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_i32(&mut self, value: i32) -> Result<(), String> {
+    fn write_i32(&mut self, value: i32) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_u64(&mut self, value: u64) -> Result<(), String> {
+    fn write_u64(&mut self, value: u64) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_i64(&mut self, value: i64) -> Result<(), String> {
+    fn write_i64(&mut self, value: i64) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_f32(&mut self, value: f32) -> Result<(), String> {
+    fn write_f32(&mut self, value: f32) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_f64(&mut self, value: f64) -> Result<(), String> {
+    fn write_f64(&mut self, value: f64) {
         let bytes = value.to_le_bytes();
-        self.write(&bytes)?;
-        return Ok(());
+        self.extend(bytes);
     }
 
-    pub fn write_string(&mut self, value: &str) -> Result<(), String> {
-        self.write(value.as_bytes())?;
-        return Ok(());
+    fn write_string(&mut self, value: &str) {
+        self.extend(value.as_bytes());
     }
 }
