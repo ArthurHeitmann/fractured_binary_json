@@ -74,8 +74,12 @@ jobs:
         run: yarn config set supportedArchitectures.cpu "ia32"
         shell: bash
         working-directory: frac_json_rust/frac_json_node
+      - name: List
+        run: ls -R
       - name: Install dependencies
-        run: yarn install
+        run: |
+          cd frac_json_rust/frac_json_node
+          yarn install
         working-directory: frac_json_rust/frac_json_node
       - name: Setup node x86
         uses: actions/setup-node@v4
