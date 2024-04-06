@@ -37,9 +37,6 @@ jobs:
             build: yarn build --target x86_64-unknown-linux-gnu
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
-    defaults:
-      run:
-        working-directory: frac_json_rust/frac_json_node
     steps:
       - uses: actions/checkout@v4
       - name: Setup node
@@ -71,10 +68,12 @@ jobs:
         run: ${{ matrix.settings.setup }}
         if: ${{ matrix.settings.setup }}
         shell: bash
+        working-directory: frac_json_rust/frac_json_node
       - name: Setup node x86
         if: matrix.settings.target == 'i686-pc-windows-msvc'
         run: yarn config set supportedArchitectures.cpu "ia32"
         shell: bash
+        working-directory: frac_json_rust/frac_json_node
       - name: Install dependencies
         run: yarn install
         working-directory: frac_json_rust/frac_json_node
@@ -96,6 +95,7 @@ jobs:
         run: ${{ matrix.settings.build }}
         if: ${{ !matrix.settings.docker }}
         shell: bash
+        working-directory: frac_json_rust/frac_json_node
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -118,9 +118,6 @@ jobs:
           - '18'
           - '20'
     runs-on: ${{ matrix.settings.host }}
-    defaults:
-      run:
-        working-directory: frac_json_rust/frac_json_node
     steps:
       - uses: actions/checkout@v4
       - name: Setup node
@@ -130,6 +127,7 @@ jobs:
           cache: yarn
       - name: Install dependencies
         run: yarn install
+        working-directory: frac_json_rust/frac_json_node
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -140,6 +138,7 @@ jobs:
         shell: bash
       - name: Test bindings
         run: yarn test
+        working-directory: frac_json_rust/frac_json_node
   test-linux-x64-gnu-binding:
     name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
     needs:
@@ -151,9 +150,6 @@ jobs:
           - '18'
           - '20'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frac_json_rust/frac_json_node
     steps:
       - uses: actions/checkout@v4
       - name: Setup node
@@ -163,6 +159,7 @@ jobs:
           cache: yarn
       - name: Install dependencies
         run: yarn install
+        working-directory: frac_json_rust/frac_json_node
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -173,6 +170,7 @@ jobs:
         shell: bash
       - name: Test bindings
         run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim yarn test
+        working-directory: frac_json_rust/frac_json_node
   # publish:
   #   name: Publish
   #   runs-on: ubuntu-latest

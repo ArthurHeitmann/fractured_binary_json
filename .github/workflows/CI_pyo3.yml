@@ -26,9 +26,6 @@ jobs:
           x86_64
           #, x86, aarch64, armv7, s390x, ppc64le
           ]
-    defaults:
-      run:
-        working-directory: frac_json_rust/frac_json_py
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
