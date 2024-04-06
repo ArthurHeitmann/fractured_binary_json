@@ -80,7 +80,6 @@ jobs:
         run: |
           cd frac_json_rust/frac_json_node
           yarn install
-        working-directory: frac_json_rust/frac_json_node
       - name: Setup node x86
         uses: actions/setup-node@v4
         if: matrix.settings.target == 'i686-pc-windows-msvc'
