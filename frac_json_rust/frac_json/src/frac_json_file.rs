@@ -10,7 +10,7 @@ use crate::{
 
 pub fn encode(
     json: &Value,
-    global_keys_table_bytes: Option<Vec<u8>>,
+    global_keys_table_bytes: Option<&Vec<u8>>,
     compression_level: Option<i32>,
 ) -> Result<Vec<u8>, String> {
     let mut header_bytes = Vec::with_capacity(3);
@@ -45,17 +45,17 @@ pub fn encode(
 }
 
 pub fn decode(
-    frac_json_bytes: Vec<u8>,
-    global_keys_table_bytes: Option<Vec<u8>>,
+    frac_json_bytes: &Vec<u8>,
+    global_keys_table_bytes: Option<&Vec<u8>>,
 ) -> Result<Value, String> {
     let mut bytes = ByteReader::make(frac_json_bytes);
     let config = Config::read_header(&mut bytes)?;
+    let decompressed_bytes: Vec<u8>;
     if config.is_zstd_compressed {
         let compressed_bytes = bytes.read_remaining()?;
         let buffer_size = compressed_bytes.len() * 50;
-        let decompressed_bytes =
-            decompress(&compressed_bytes, buffer_size).map_err(|e| e.to_string())?;
-        bytes = ByteReader::make(decompressed_bytes);
+        decompressed_bytes = decompress(&compressed_bytes, buffer_size).map_err(|e| e.to_string())?;
+        bytes = ByteReader::make(&decompressed_bytes);
     }
     let global_keys_table = match global_keys_table_bytes {
         Some(bytes) => match GlobalKeysTable::read_keys_table(&mut ByteReader::make(bytes)) {

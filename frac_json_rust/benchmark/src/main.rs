@@ -571,7 +571,7 @@ fn decode_frac_json(
 ) -> (Value, Duration) {
     measure(|| {
         let bytes = optionally_decompress(bytes, uses_compression, trained_dict);
-        let value = frac_json::decode(bytes, None).unwrap();
+        let value = frac_json::decode(&bytes, None).unwrap();
         value
     })
 }
@@ -599,7 +599,7 @@ fn encode_frac_json_global_keys_table(
     let keys_table_bytes = cached_keys_tables.get(path).unwrap();
     measure(|| {
         let bytes =
-            frac_json::encode(value, Some(keys_table_bytes.clone()), None).unwrap();
+            frac_json::encode(value, Some(keys_table_bytes), None).unwrap();
         optionally_compress(&bytes, compress, trained_dict)
     })
 }
@@ -614,7 +614,7 @@ fn decode_frac_json_global_keys_table(
     let global_keys_table = cached_keys_tables.get(path).unwrap();
     measure(|| {
         let bytes = optionally_decompress(bytes, uses_compression, trained_dict);
-        let value = frac_json::decode(bytes, Some(global_keys_table.clone())).unwrap();
+        let value = frac_json::decode(&bytes, Some(global_keys_table)).unwrap();
         value
     })
 }

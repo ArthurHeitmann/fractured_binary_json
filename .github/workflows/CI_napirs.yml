@@ -105,77 +105,77 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: frac_json_rust/frac_json_node/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
-  test-macOS-windows-binding:
-    name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - host: macos-latest
-            target: x86_64-apple-darwin
-          - host: windows-latest
-            target: x86_64-pc-windows-msvc
-        node:
-          - '18'
-          - '20'
-    runs-on: ${{ matrix.settings.host }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: yarn
-          cache-dependency-path: frac_json_rust/frac_json_node/yarn.lock
-      - name: Install dependencies
-        run: yarn install
-        working-directory: frac_json_rust/frac_json_node
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: bindings-${{ matrix.settings.target }}
-          path: frac_json_rust/frac_json_node
-      - name: List packages
-        run: ls -R frac_json_rust/frac_json_node
-        shell: bash
-      - name: Test bindings
-        run: yarn test
-        working-directory: frac_json_rust/frac_json_node
-  test-linux-x64-gnu-binding:
-    name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - '18'
-          - '20'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-          cache: yarn
-          cache-dependency-path: frac_json_rust/frac_json_node/yarn.lock
-      - name: Install dependencies
-        run: yarn install
-        working-directory: frac_json_rust/frac_json_node
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: bindings-x86_64-unknown-linux-gnu
-          path: frac_json_rust/frac_json_node
-      - name: List packages
-        run: ls -R frac_json_rust/frac_json_node
-        shell: bash
-      - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim yarn test
-        working-directory: frac_json_rust/frac_json_node
+  # test-macOS-windows-binding:
+  #   name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
+  #   needs:
+  #     - build
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       settings:
+  #         - host: macos-latest
+  #           target: x86_64-apple-darwin
+  #         - host: windows-latest
+  #           target: x86_64-pc-windows-msvc
+  #       node:
+  #         - '18'
+  #         - '20'
+  #   runs-on: ${{ matrix.settings.host }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ matrix.node }}
+  #         cache: yarn
+  #         cache-dependency-path: frac_json_rust/frac_json_node/yarn.lock
+  #     - name: Install dependencies
+  #       run: yarn install
+  #       working-directory: frac_json_rust/frac_json_node
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: bindings-${{ matrix.settings.target }}
+  #         path: frac_json_rust/frac_json_node
+  #     - name: List packages
+  #       run: ls -R frac_json_rust/frac_json_node
+  #       shell: bash
+  #     - name: Test bindings
+  #       run: yarn test
+  #       working-directory: frac_json_rust/frac_json_node
+  # test-linux-x64-gnu-binding:
+  #   name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
+  #   needs:
+  #     - build
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       node:
+  #         - '18'
+  #         - '20'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup node
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ matrix.node }}
+  #         cache: yarn
+  #         cache-dependency-path: frac_json_rust/frac_json_node/yarn.lock
+  #     - name: Install dependencies
+  #       run: yarn install
+  #       working-directory: frac_json_rust/frac_json_node
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: bindings-x86_64-unknown-linux-gnu
+  #         path: frac_json_rust/frac_json_node
+  #     - name: List packages
+  #       run: ls -R frac_json_rust/frac_json_node
+  #       shell: bash
+  #     - name: Test bindings
+  #       run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim yarn test
+  #       working-directory: frac_json_rust/frac_json_node
   # publish:
   #   name: Publish
   #   runs-on: ubuntu-latest

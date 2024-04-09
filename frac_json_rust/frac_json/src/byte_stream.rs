@@ -1,11 +1,11 @@
 // LE
-pub struct ByteReader {
-    bytes: Vec<u8>,
+pub struct ByteReader<'a> {
+    bytes: &'a Vec<u8>,
     pos: usize,
 }
 
-impl ByteReader {
-    pub fn make(items: Vec<u8>) -> ByteReader {
+impl<'a> ByteReader<'a> {
+    pub fn make(items: &Vec<u8>) -> ByteReader {
         ByteReader {
             bytes: items,
             pos: 0,

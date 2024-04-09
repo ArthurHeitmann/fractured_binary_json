@@ -14,9 +14,10 @@ pub fn encode(
   global_keys_table_bytes: Option<Buffer>,
   compression_level: Option<i32>,
 ) -> Result<Buffer, Error> {
+  let global_keys_table_bytes = global_keys_table_bytes.and_then(|bytes| Some(Vec::from(bytes)));
   frac_json::encode(
     &value,
-    global_keys_table_bytes.and_then(|bytes| Some(Vec::from(bytes))),
+    global_keys_table_bytes.as_ref(),
     compression_level,
   )
   .map_err(|err| {
@@ -33,9 +34,10 @@ pub fn decode(
   frac_json_bytes: Buffer,
   global_keys_table_bytes: Option<Buffer>,
 ) -> Result<Value, Error> {
+  let global_keys_table_bytes = global_keys_table_bytes.and_then(|bytes| Some(Vec::from(bytes)));
   frac_json::decode(
-    Vec::from(frac_json_bytes),
-    global_keys_table_bytes.and_then(|bytes| Some(Vec::from(bytes))),
+    &Vec::from(frac_json_bytes),
+    global_keys_table_bytes.as_ref(),
   )
   .map_err(|err| {
     Error::new(
