@@ -4,6 +4,8 @@ A binary JSON encoding optimized for small storage size.
 
 When the schema of JSON data is known ahead of time, storage size can be further optimized by storing object key names in a separate global keys table.
 
+`frac_json` can be used as an abbreviation and file extension.
+
 Format specification can be found [here](./format_specification.md).
 
 ## Benchmarks
