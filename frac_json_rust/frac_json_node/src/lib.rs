@@ -19,6 +19,7 @@ pub fn encode(
     &value,
     global_keys_table_bytes.as_ref(),
     compression_level,
+    None,
   )
   .map_err(|err| {
     Error::new(
@@ -38,6 +39,7 @@ pub fn decode(
   frac_json::decode(
     &Vec::from(frac_json_bytes),
     global_keys_table_bytes.as_ref(),
+    None,
   )
   .map_err(|err| {
     Error::new(

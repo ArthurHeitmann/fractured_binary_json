@@ -32,6 +32,7 @@ struct Header {
 - `config`
   - `0000XXXX` version. Each new version indicates a breaking change.
   - `00010000` indicates that all bytes after the header are compressed with zstandard. This is mainly for convenience. If you really care about storage efficiency, you won't get around compression anyways, so might as well include it here.
+  - `00100000` indicates that data is compressed with an external zstandard dictionary.
 
 ### Value
 
