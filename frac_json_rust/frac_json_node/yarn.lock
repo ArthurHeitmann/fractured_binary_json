@@ -60,6 +60,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@raiderb/frac_json@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@raiderb/frac_json@workspace:."
+  dependencies:
+    "@napi-rs/cli": "npm:^2.18.0"
+    ava: "npm:^6.0.1"
+  languageName: unknown
+  linkType: soft
+
 "@rollup/pluginutils@npm:^4.0.0":
   version: 4.2.1
   resolution: "@rollup/pluginutils@npm:4.2.1"
@@ -641,15 +650,6 @@ __metadata:
   checksum: 10c0/de1ad5e55c8c162f5600fe3297bb55a3da5cd9cb8c6755e463ec1d52c4c15a84e312a68397fb5962d13263b3dbd4ea294668c465ccacc41291d7cc97588769f9
   languageName: node
   linkType: hard
-
-"frac_json@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "frac_json@workspace:."
-  dependencies:
-    "@napi-rs/cli": "npm:^2.18.0"
-    ava: "npm:^6.0.1"
-  languageName: unknown
-  linkType: soft
 
 "fs-minipass@npm:^2.0.0":
   version: 2.1.0
