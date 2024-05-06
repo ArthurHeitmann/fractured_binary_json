@@ -17,9 +17,10 @@ pub fn encode(
     object: PyObject,
     global_keys_table_bytes: Option<Vec<u8>>,
     compression_level: Option<i32>,
+    zstd_dict: Option<Vec<u8>>,
 ) -> PyResult<Cow<[u8]>> {
     let value = py_to_json(py, &object).map_err(|err| FracJsonError::new_err(err))?;
-    fj::encode(&value, global_keys_table_bytes.as_ref(), compression_level, None)
+    fj::encode(&value, global_keys_table_bytes.as_ref(), compression_level, zstd_dict.as_ref())
         .map(|vec| Cow::from(vec))
         .map_err(|err| FracJsonError::new_err(err))
 }
@@ -29,8 +30,9 @@ pub fn decode(
     py: Python,
     frac_json_bytes: Vec<u8>,
     global_keys_table_bytes: Option<Vec<u8>>,
+    zstd_dict: Option<Vec<u8>>,
 ) -> PyResult<PyObject> {
-    let value = fj::decode(frac_json_bytes.as_ref(), global_keys_table_bytes.as_ref(), None)
+    let value = fj::decode(frac_json_bytes.as_ref(), global_keys_table_bytes.as_ref(), zstd_dict.as_ref())
         .map_err(|err| FracJsonError::new_err(err))?;
     Ok(to_py_object(py, &value).map_err(|err| FracJsonError::new_err(err))?)
 }

@@ -8,18 +8,35 @@ use serde_json::Value;
 
 use frac_json::{self, global_table_from_json_limited, global_table_from_keys};
 
+#[napi(object)]
+#[derive(Default)]
+pub struct EncodeOptions {
+  pub global_keys_table_bytes: Option<Buffer>,
+  pub compression_level: Option<i32>,
+  pub zstd_dict: Option<Buffer>,
+}
+
+#[napi(object)]
+#[derive(Default)]
+pub struct DecodeOptions {
+  pub global_keys_table_bytes: Option<Buffer>,
+  pub zstd_dict: Option<Buffer>,
+}
+
 #[napi]
 pub fn encode(
   value: Value,
-  global_keys_table_bytes: Option<Buffer>,
-  compression_level: Option<i32>,
+  encode_options: Option<EncodeOptions>,
 ) -> Result<Buffer, Error> {
-  let global_keys_table_bytes = global_keys_table_bytes.and_then(|bytes| Some(Vec::from(bytes)));
+  let encode_options = encode_options.unwrap_or_default();
+  let global_keys_table_bytes = buffer_to_vec(encode_options.global_keys_table_bytes);
+  let compression_level = encode_options.compression_level;
+  let zstd_dict = buffer_to_vec(encode_options.zstd_dict);
   frac_json::encode(
     &value,
     global_keys_table_bytes.as_ref(),
     compression_level,
-    None,
+    zstd_dict.as_ref(),
   )
   .map_err(|err| {
     Error::new(
@@ -33,13 +50,15 @@ pub fn encode(
 #[napi]
 pub fn decode(
   frac_json_bytes: Buffer,
-  global_keys_table_bytes: Option<Buffer>,
+  decode_options: Option<DecodeOptions>,
 ) -> Result<Value, Error> {
-  let global_keys_table_bytes = global_keys_table_bytes.and_then(|bytes| Some(Vec::from(bytes)));
+  let decode_options = decode_options.unwrap_or_default();
+  let global_keys_table_bytes = buffer_to_vec(decode_options.global_keys_table_bytes);
+  let zstd_dict = buffer_to_vec(decode_options.zstd_dict);
   frac_json::decode(
     &Vec::from(frac_json_bytes),
     global_keys_table_bytes.as_ref(),
-    None,
+    zstd_dict.as_ref(),
   )
   .map_err(|err| {
     Error::new(
@@ -79,4 +98,8 @@ pub fn keys_table_from_json(
     )
   })
   .map(|vec| Buffer::from(vec))
+}
+
+fn buffer_to_vec(buffer: Option<Buffer>) -> Option<Vec<u8>> {
+  buffer.and_then(|buffer| Some(Vec::from(buffer)))
 }
