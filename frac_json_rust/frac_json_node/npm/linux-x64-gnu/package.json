@@ -1,6 +1,6 @@
 {
-  "name": "frac_json-linux-x64-gnu",
-  "version": "0.0.0",
+  "name": "@raiderb/frac_json-linux-x64-gnu",
+  "version": "0.1.0",
   "os": [
     "linux"
   ],
@@ -15,6 +15,7 @@
   "engines": {
     "node": ">= 10"
   },
+  "repository": "https://github.com/ArthurHeitmann/fractured_binary_json/",
   "libc": [
     "glibc"
   ]

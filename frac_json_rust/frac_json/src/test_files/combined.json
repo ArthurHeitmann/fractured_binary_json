@@ -1,0 +1,21 @@
+{
+	"null": null,
+	"bool_false": false,
+	"bool_true": true,
+	"int8": -50,
+	"uint8": 150,
+	"int16": -1000,
+	"uint16": 30000,
+	"int32": -2000000000,
+	"uint32": 4000000000,
+	"int64": -9000000000000000,
+	"uint64": 18000000000000000,
+	"float": 3.25,
+	"double": 123456789.987654321,
+	"string8": "This string is even longer and may contain special characters like á, é, í, ó, ú, and ñ.",
+	"tiny_object": {"name": "John Doe", "age": 30, "city": "New York"},
+	"tiny_array": ["apple", "banana", "cherry", "date"],
+	"tiny_string": "Hello, world!",
+	"tiny_int": -10
+  }
+  

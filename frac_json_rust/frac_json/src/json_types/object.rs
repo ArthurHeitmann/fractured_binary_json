@@ -208,7 +208,7 @@ mod tests {
         let mut bytes = Vec::new();
         write_vu16(key_index, &mut bytes);
         assert_eq!(expected_bytes_count, bytes.len());
-        let mut bytes = ByteReader::make(bytes);
+        let mut bytes = ByteReader::make(&bytes);
         let result = read_vu16(&mut bytes).unwrap();
         assert_eq!(key_index, result);
         Ok(())

@@ -1,6 +1,6 @@
 {
-  "name": "frac_json-darwin-x64",
-  "version": "0.0.0",
+  "name": "@raiderb/frac_json-darwin-x64",
+  "version": "0.1.0",
   "os": [
     "darwin"
   ],
@@ -14,5 +14,6 @@
   "license": "MIT",
   "engines": {
     "node": ">= 10"
-  }
+  },
+  "repository": "https://github.com/ArthurHeitmann/fractured_binary_json/"
 }

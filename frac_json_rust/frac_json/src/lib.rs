@@ -4,6 +4,7 @@ mod frac_json_file;
 mod json_types;
 mod keys_table;
 mod keys_table_utils;
+mod test;
 
 pub use frac_json_file::{decode, encode};
 pub use keys_table_utils::{
