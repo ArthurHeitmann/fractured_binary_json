@@ -46,8 +46,8 @@ jobs:
             setup: |
               sudo apt-get update
               sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
-              echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
-              echo "linker = \"aarch64-linux-gnu-gcc\"" >> .cargo/config
+              echo "[target.aarch64-unknown-linux-gnu]" >> ~/.cargo/config
+              echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config
           - host: ubuntu-latest
             target: i686-unknown-linux-gnu
             build: yarn build --target i686-unknown-linux-gnu
