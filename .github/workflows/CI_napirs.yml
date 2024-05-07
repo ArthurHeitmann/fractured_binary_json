@@ -48,6 +48,7 @@ jobs:
               sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
               echo "[target.aarch64-unknown-linux-gnu]" >> ~/.cargo/config
               echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config
+              echo "config file:"
               cat ~/.cargo/config
           # - host: ubuntu-latest
           #   target: i686-unknown-linux-gnu
@@ -66,17 +67,17 @@ jobs:
           node-version: 20
           cache: yarn
           cache-dependency-path: frac_json_rust/frac_json_node/yarn.lock
-      - name: Optional setup
-        run: ${{ matrix.settings.setup }}
-        if: ${{ matrix.settings.setup }}
-        shell: bash
-        working-directory: frac_json_rust/frac_json_node
       - name: Install
         uses: dtolnay/rust-toolchain@stable
         if: ${{ !matrix.settings.docker }}
         with:
           toolchain: stable
           targets: ${{ matrix.settings.target }}
+      - name: Optional setup
+        run: ${{ matrix.settings.setup }}
+        if: ${{ matrix.settings.setup }}
+        shell: bash
+        working-directory: frac_json_rust/frac_json_node
       - name: Cache cargo
         uses: actions/cache@v4
         with:
