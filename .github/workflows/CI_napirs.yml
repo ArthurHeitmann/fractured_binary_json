@@ -25,21 +25,21 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
-            target: x86_64-apple-darwin
-            build: yarn build
-          - host: macos-latest
-            target: aarch64-apple-darwin
-            build: yarn build --target aarch64-apple-darwin
-          - host: windows-latest
-            build: yarn build
-            target: x86_64-pc-windows-msvc
-          - host: windows-latest
-            target: aarch64-pc-windows-msvc
-            build: yarn build --target aarch64-pc-windows-msvc
-          - host: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            build: yarn build --target x86_64-unknown-linux-gnu
+          # - host: macos-latest
+          #   target: x86_64-apple-darwin
+          #   build: yarn build
+          # - host: macos-latest
+          #   target: aarch64-apple-darwin
+          #   build: yarn build --target aarch64-apple-darwin
+          # - host: windows-latest
+          #   build: yarn build
+          #   target: x86_64-pc-windows-msvc
+          # - host: windows-latest
+          #   target: aarch64-pc-windows-msvc
+          #   build: yarn build --target aarch64-pc-windows-msvc
+          # - host: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   build: yarn build --target x86_64-unknown-linux-gnu
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             build: yarn build --target aarch64-unknown-linux-gnu
@@ -48,12 +48,13 @@ jobs:
               sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
               echo "[target.aarch64-unknown-linux-gnu]" >> ~/.cargo/config
               echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config
-          - host: ubuntu-latest
-            target: i686-unknown-linux-gnu
-            build: yarn build --target i686-unknown-linux-gnu
-            setup: |
-              sudo apt-get update
-              sudo apt-get install -y gcc-multilib g++-multilib
+              cat ~/.cargo/config
+          # - host: ubuntu-latest
+          #   target: i686-unknown-linux-gnu
+          #   build: yarn build --target i686-unknown-linux-gnu
+          #   setup: |
+          #     sudo apt-get update
+          #     sudo apt-get install -y gcc-multilib g++-multilib
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
