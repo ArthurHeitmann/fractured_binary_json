@@ -59,7 +59,7 @@ jobs:
             build: yarn build --target aarch64-unknown-linux-musl
             setup: |
               sudo apt-get update
-              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+              sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross musl-tools
               echo "[target.aarch64-unknown-linux-musl]" >> ~/.cargo/config
               echo "linker = \"aarch64-linux-gnu-gcc\"" >> ~/.cargo/config
           - host: ubuntu-latest
