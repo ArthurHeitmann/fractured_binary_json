@@ -231,9 +231,11 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: frac_json_rust/frac_json_node/artifacts
       - name: Move artifacts
-        run: yarn artifacts
+        run: |
+          ls -R
+          yarn artifacts
         working-directory: frac_json_rust/frac_json_node
       - name: List packages
         run: ls -R ./npm
