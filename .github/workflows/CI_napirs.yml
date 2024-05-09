@@ -241,7 +241,7 @@ jobs:
         working-directory: frac_json_rust/frac_json_node
       - name: Publish
         run: |
-          npm config set provenance true
+          # npm config set provenance true
           if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
           then
             echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc

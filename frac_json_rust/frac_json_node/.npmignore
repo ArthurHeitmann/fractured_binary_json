@@ -12,3 +12,4 @@ yarn.lock
 .yarnrc.yml
 __test__
 renovate.json
+src/

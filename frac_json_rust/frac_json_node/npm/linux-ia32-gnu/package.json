@@ -1,0 +1,22 @@
+{
+  "name": "@raiderb/frac_json-linux-ia32-gnu",
+  "version": "0.1.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "ia32"
+  ],
+  "main": "frac_json.linux-ia32-gnu.node",
+  "files": [
+    "frac_json.linux-ia32-gnu.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  },
+  "repository": "https://github.com/ArthurHeitmann/fractured_binary_json/",
+  "libc": [
+    "glibc"
+  ]
+}
