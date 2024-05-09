@@ -1,5 +1,8 @@
 target
 Cargo.lock
+src/
+*.rs
+Cargo.toml
 .cargo
 .github
 npm
@@ -12,4 +15,3 @@ yarn.lock
 .yarnrc.yml
 __test__
 renovate.json
-src/
