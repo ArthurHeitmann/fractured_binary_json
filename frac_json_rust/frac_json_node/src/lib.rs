@@ -11,18 +11,24 @@ use frac_json::{self, global_table_from_json_limited, global_table_from_keys};
 #[napi(object)]
 #[derive(Default)]
 pub struct EncodeOptions {
+  /// bytes of an external keys table
   pub global_keys_table_bytes: Option<Buffer>,
+	/// compression level for zstandard. 1-22. Default is 3.
   pub compression_level: Option<i32>,
+  /// pre trained zstandard dictionary
   pub zstd_dict: Option<Buffer>,
 }
 
 #[napi(object)]
 #[derive(Default)]
 pub struct DecodeOptions {
+  /// bytes of an external keys table
   pub global_keys_table_bytes: Option<Buffer>,
+  /// pre trained zstandard dictionary
   pub zstd_dict: Option<Buffer>,
 }
 
+/// Encode a JSON object (object, array, string, number, boolean, null) to a Buffer
 #[napi]
 pub fn encode(
   value: Value,
@@ -47,6 +53,7 @@ pub fn encode(
   .map(|vec| Buffer::from(vec))
 }
 
+/// Decode a Buffer to a JSON object (object, array, string, number, boolean, null).
 #[napi]
 pub fn decode(
   frac_json_bytes: Buffer,
@@ -68,6 +75,8 @@ pub fn decode(
   })
 }
 
+/// Generate a keys table from a list of unique keys.  
+/// To improve performance during encoding, keys should be sorted by frequency of occurrence.
 #[napi]
 pub fn keys_table_from_keys(keys: Vec<String>) -> Result<Buffer, Error> {
   global_table_from_keys(keys)
@@ -80,6 +89,7 @@ pub fn keys_table_from_keys(keys: Vec<String>) -> Result<Buffer, Error> {
     .map(|vec| Buffer::from(vec))
 }
 
+/// Generate a keys table from a JSON object.
 #[napi]
 pub fn keys_table_from_json(
   obj: Value,

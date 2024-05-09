@@ -9,5 +9,6 @@ rustfmt.toml
 yarn.lock
 *.node
 .yarn
+.yarnrc.yml
 __test__
 renovate.json
