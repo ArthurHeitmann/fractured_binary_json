@@ -44,17 +44,5 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ArthurHeitmann/fractured_binary_json.git"
-  },
-  "optionalDependencies": {
-    "@raiderb/frac_json-win32-x64-msvc": "0.1.0",
-    "@raiderb/frac_json-darwin-x64": "0.1.0",
-    "@raiderb/frac_json-linux-x64-gnu": "0.1.0",
-    "@raiderb/frac_json-darwin-arm64": "0.1.0",
-    "@raiderb/frac_json-win32-arm64-msvc": "0.1.0",
-    "@raiderb/frac_json-linux-arm64-gnu": "0.1.0",
-    "@raiderb/frac_json-linux-arm64-musl": "0.1.0",
-    "@raiderb/frac_json-win32-ia32-msvc": "0.1.0",
-    "@raiderb/frac_json-linux-ia32-gnu": "0.1.0",
-    "@raiderb/frac_json-linux-x64-musl": "0.1.0"
   }
 }
