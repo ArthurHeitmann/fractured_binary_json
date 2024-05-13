@@ -1,5 +1,5 @@
 use serde_json::Value;
-use zstd::bulk::{compress, decompress, Compressor, Decompressor};
+use zstd::bulk::{compress, Compressor, Decompressor};
 
 use crate::{
     byte_stream::ByteReader,
@@ -66,16 +66,9 @@ pub fn decode(
     let decompressed_bytes: Vec<u8>;
     if config.is_zstd_compressed {
         let compressed_bytes = bytes.read_remaining()?;
-        let buffer_size = compressed_bytes.len() * 50;
-        if config.uses_external_dict {
-            decompressed_bytes = Decompressor::with_dictionary(zstd_dict.unwrap())
-                .map_err(|e| e.to_string())?
-                .decompress(&compressed_bytes, buffer_size)
-                .map_err(|e| e.to_string())?;
-        }
-        else {
-            decompressed_bytes = decompress(&compressed_bytes, buffer_size).map_err(|e| e.to_string())?;
-        }
+        let buffer_size = compressed_bytes.len() * 25;
+        let dict = if config.uses_external_dict { zstd_dict } else { None };
+        decompressed_bytes = try_decompress(&compressed_bytes, buffer_size, dict, 0)?;
         bytes = ByteReader::make(&decompressed_bytes);
     }
     let global_keys_table = match global_keys_table_bytes {
@@ -88,4 +81,21 @@ pub fn decode(
     let mut keys_table = DecodeKeysTables::make(global_keys_table);
 
     return read_value(&mut bytes, &mut keys_table);
+}
+
+fn try_decompress(bytes: &[u8], buffer_size: usize, dict: Option<&Vec<u8>>, attempt: usize) -> Result<Vec<u8>, String> {
+    let mut decompressor = match dict {
+        Some(d) => Decompressor::with_dictionary(d).map_err(|e| e.to_string())?,
+        None => Decompressor::new().map_err(|e| e.to_string())?,
+    };
+    let result = decompressor.decompress(bytes, buffer_size);
+    match result {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            if attempt < 3 {
+                return try_decompress(bytes, buffer_size * 4, dict, attempt + 1);
+            }
+            return Err(e.to_string());
+        }
+    }
 }
