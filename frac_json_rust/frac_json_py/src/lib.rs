@@ -34,7 +34,7 @@ pub fn decode(
 ) -> PyResult<PyObject> {
     let value = fj::decode(frac_json_bytes.as_ref(), global_keys_table_bytes.as_ref(), zstd_dict.as_ref())
         .map_err(|err| FracJsonError::new_err(err))?;
-    Ok(to_py_object(py, &value).map_err(|err| FracJsonError::new_err(err))?)
+    Ok(json_to_py(py, &value).map_err(|err| FracJsonError::new_err(err))?)
 }
 
 #[pyfunction]
@@ -62,7 +62,7 @@ pub fn keys_table_from_json(
 }
 
 #[pymodule]
-fn frac_json(_py: Python, m: &PyModule) -> PyResult<()> {
+fn frac_json(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(encode, m)?)?;
     m.add_function(wrap_pyfunction!(decode, m)?)?;
     m.add_function(wrap_pyfunction!(keys_table_from_keys, m)?)?;
@@ -139,7 +139,7 @@ fn py_to_json(py: Python, obj: &PyObject) -> Result<serde_json::Value, String> {
         .unwrap_or("Failed to convert object to JSON".to_string()))
 }
 
-fn to_py_object(py: Python, value: &serde_json::Value) -> Result<PyObject, String> {
+fn json_to_py(py: Python, value: &serde_json::Value) -> Result<PyObject, String> {
     match value {
         Value::Null => Ok(py.None()),
         Value::Bool(b) => Ok(b.to_object(py)),
@@ -158,7 +158,7 @@ fn to_py_object(py: Python, value: &serde_json::Value) -> Result<PyObject, Strin
         Value::Array(a) => {
             let list = PyList::empty(py);
             for item in a {
-                list.append(to_py_object(py, item)?)
+                list.append(json_to_py(py, item)?)
                     .map_err(|err| err.to_string())?;
             }
             Ok(list.to_object(py))
@@ -166,7 +166,7 @@ fn to_py_object(py: Python, value: &serde_json::Value) -> Result<PyObject, Strin
         Value::Object(o) => {
             let dict = PyDict::new(py);
             for (key, value) in o {
-                dict.set_item(key, to_py_object(py, value)?)
+                dict.set_item(key, json_to_py(py, value)?)
                     .map_err(|err| err.to_string())?;
             }
             Ok(dict.to_object(py))
