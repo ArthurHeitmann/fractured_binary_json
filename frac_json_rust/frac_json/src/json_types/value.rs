@@ -199,25 +199,14 @@ pub fn write_value<'a, 'b: 'a, W: ByteWriter>(
 }
 
 fn can_be_represented_as_f32(f: f64) -> bool {
-    const SMALLEST_F32: f64 = 1.1754943508222875e-38;
-    const LARGEST_INTEGER_F32: f64 = 16777216.0;
     if f.is_nan() {
         return false;
     }
     if f.is_infinite() {
         return true;
     }
-    let abs_f = f.abs();
-    if abs_f < SMALLEST_F32 || abs_f > LARGEST_INTEGER_F32 {
-        return false;
-    }
     let f_with_f32_precision = f as f32 as f64;
-    if f_with_f32_precision == f {
-        return true;
-    }
-    let error_relative = ((f - f_with_f32_precision) / f).abs();
-    const MAX_ERROR_RELATIVE: f64 = 0.0000001;
-    return error_relative < MAX_ERROR_RELATIVE;
+    return f_with_f32_precision == f
 }
 
 fn write_var_length_data_type<W: ByteWriter>(
