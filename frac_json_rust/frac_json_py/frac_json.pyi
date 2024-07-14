@@ -1,6 +1,6 @@
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Union
 
-json_type = dict|list|str|int|float|bool|None
+json_type = Union[dict, list, str, int, float, bool, None]
 
 def encode(
     object: json_type,
