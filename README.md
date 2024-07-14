@@ -8,6 +8,24 @@ When the schema of JSON data is known ahead of time, storage size can be further
 
 Format specification can be found [here](./format_specification.md).
 
+## Usage
+
+### Python
+
+```bash
+pip install frac_json
+```
+
+[Usage examples](./frac_json_rust/frac_json_py/README.md)
+
+### Node.js
+
+```bash
+npm install @raiderb/frac_json
+```
+
+[Usage examples](./frac_json_rust/frac_json_node/README.md)
+
 ## Benchmarks
 
 Comparison of different JSON encoding formats in combination with compression.

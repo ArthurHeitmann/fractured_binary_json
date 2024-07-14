@@ -2,7 +2,7 @@
 name = "frac_json_py"
 description = "Highly storage efficient binary JSON format"
 repository = "https://github.com/ArthurHeitmann/fractured_binary_json"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

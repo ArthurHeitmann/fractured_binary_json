@@ -7,22 +7,23 @@ For more information, see [here](https://github.com/ArthurHeitmann/fractured_bin
 ## Usage
 
 ```python
-import frac_json as jf
+import frac_json as fj
 
 # basic usage
-encoded_object = fj.encode({ key1: "value" })
+encoded_object = fj.encode({ "key1": "value" })
 decoded_object = fj.decode(encoded_object)
 
 # with compression
 large_object = {
 	# ...	
 }
-encoded_object2 = encode(large_object, compression_level=3)
+encoded_object2 = fj.encode(large_object, compression_level=3)
 
 # with keys table
-keys_table = keys_table_from_json(large_object) # one time only, save this to a file
+keys_table = fj.keys_table_from_json(large_object) # one time only, save this to a file
 # keys_table = keys_table_from_keys(["key", "key1", "key2", "key3"]) # or generate from keys
-encoded_object3 = encode(large_object, global_keys_table_bytes=keys_table)
+encoded_object3 = fj.encode(large_object, global_keys_table_bytes=keys_table)
+decoded_object3 = fj.decode(encoded_object3, global_keys_table_bytes=keys_table)
 ```
 
 ## Functions
