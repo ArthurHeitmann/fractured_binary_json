@@ -1,9 +1,6 @@
 use serde_json::Value;
 use std::{
-    collections::HashMap,
-    io::{stdout, Write},
-    path::Path,
-    time::Duration,
+    cmp::max, collections::HashMap, io::{stdout, Write}, path::Path, time::Duration
 };
 use utils::Table;
 use zstd::{
@@ -38,7 +35,7 @@ const TEST_FILE_NAMES_FOR_AVG: &[&str] = &[
 ];
 
 // const DICT_SIZE: usize = 10 * 1024 * 1024;
-const DICT_SIZE: usize = 100 * 1024;
+const DICT_SIZE: usize = 10 * 1024;
 const COMPRESSION_LEVEL: i32 = 3;
 
 enum CompressionConfig {
@@ -84,9 +81,9 @@ fn benchmark_size_relative(file_names: &[&str]) -> Table {
         ("MessagePack", encode_messagepack, decode_messagepack),
         ("Smile", encode_smile, decode_smile),
         ("Smile (+shared)", encode_smile_shared, decode_smile),
-        ("fracture json", encode_frac_json, decode_frac_json),
+        ("frac json", encode_frac_json, decode_frac_json),
         (
-            "fracture json (+global table)",
+            "frac json (+global table)",
             encode_frac_json_global_keys_table,
             decode_frac_json_global_keys_table,
         ),
@@ -184,9 +181,9 @@ fn benchmark_size_relative_avg(file_names: &[&str]) -> (Table, Table, Table) {
         ("MessagePack", encode_messagepack, decode_messagepack),
         ("Smile", encode_smile, decode_smile),
         ("Smile (+shared)", encode_smile_shared, decode_smile),
-        ("fracture json", encode_frac_json, decode_frac_json),
+        ("frac json", encode_frac_json, decode_frac_json),
         (
-            "fracture json (+global table)",
+            "frac json (+global table)",
             encode_frac_json_global_keys_table,
             decode_frac_json_global_keys_table,
         ),
@@ -427,16 +424,28 @@ fn optionally_decompress(
     trained_dict: Option<&Vec<u8>>,
 ) -> Vec<u8> {
     if uses_compression {
-        let buffer_size = data.len() * 100;
-        match trained_dict {
-            Some(trained_dict) => {
-                let mut decompressor = Decompressor::with_dictionary(&trained_dict).unwrap();
-                decompressor.decompress(data, buffer_size).unwrap()
-            }
-            None => decompress(data, buffer_size).unwrap(),
-        }
+        let buffer_size = max(1024, data.len() * 100);
+        try_decompress(data, buffer_size, trained_dict, 0)
     } else {
         data.to_vec()
+    }
+}
+
+
+fn try_decompress(bytes: &[u8], buffer_size: usize, dict: Option<&Vec<u8>>, attempt: usize) -> Vec<u8> {
+    let mut decompressor = match dict {
+        Some(d) => Decompressor::with_dictionary(d).unwrap(),
+        None => Decompressor::new().unwrap(),
+    };
+    let result = decompressor.decompress(bytes, buffer_size);
+    match result {
+        Ok(v) => v,
+        Err(e) => {
+            if attempt < 3 {
+                return try_decompress(bytes, buffer_size * 4, dict, attempt + 1);
+            }
+            panic!("Failed to decompress: {}", e);
+        }
     }
 }
 
