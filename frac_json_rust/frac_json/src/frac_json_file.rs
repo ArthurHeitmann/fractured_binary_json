@@ -66,9 +66,9 @@ pub fn decode(
     let decompressed_bytes: Vec<u8>;
     if config.is_zstd_compressed {
         let compressed_bytes = bytes.read_remaining()?;
-        let buffer_size = compressed_bytes.len() * 25;
+        let buffer_size = compressed_bytes.len() * 25 + 1024;
         let dict = if config.uses_external_dict { zstd_dict } else { None };
-        decompressed_bytes = try_decompress(&compressed_bytes, buffer_size, dict, 0)?;
+        decompressed_bytes = try_decompress(&compressed_bytes, buffer_size, dict)?;
         bytes = ByteReader::make(&decompressed_bytes);
     }
     let global_keys_table = match global_keys_table_bytes {
@@ -83,7 +83,8 @@ pub fn decode(
     return read_value(&mut bytes, &mut keys_table);
 }
 
-fn try_decompress(bytes: &[u8], buffer_size: usize, dict: Option<&Vec<u8>>, attempt: usize) -> Result<Vec<u8>, String> {
+fn try_decompress(bytes: &[u8], buffer_size: usize, dict: Option<&Vec<u8>>) -> Result<Vec<u8>, String> {
+    const max_buffer_size: usize = 10 * 1024 * 1024;
     let mut decompressor = match dict {
         Some(d) => Decompressor::with_dictionary(d).map_err(|e| e.to_string())?,
         None => Decompressor::new().map_err(|e| e.to_string())?,
@@ -92,8 +93,9 @@ fn try_decompress(bytes: &[u8], buffer_size: usize, dict: Option<&Vec<u8>>, atte
     match result {
         Ok(v) => Ok(v),
         Err(e) => {
-            if attempt < 3 {
-                return try_decompress(bytes, buffer_size * 4, dict, attempt + 1);
+            let next_buffer_size = buffer_size * 10;
+            if next_buffer_size < max_buffer_size {
+                return try_decompress(bytes, next_buffer_size, dict);
             }
             return Err(e.to_string());
         }
